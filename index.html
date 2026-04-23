@@ -2,8 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel Ultimate FINAL</title>
-
+<title>Fuel Ultimate PRO</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -11,8 +10,8 @@ body {font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
 .container{max-width:900px;margin:auto;padding:15px;}
 .card{background:#1e293b;padding:15px;margin-top:15px;border-radius:12px;}
 input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;}
-button{padding:8px 15px;background:#38bdf8;border:none;border-radius:8px;font-weight:bold;}
-table{width:100%;margin-top:10px;border-collapse:collapse;}
+button{padding:6px 12px;background:#38bdf8;border:none;border-radius:6px;font-weight:bold;margin:2px;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
 th,td{padding:6px;border-bottom:1px solid #475569;text-align:center;}
 .good{color:#22c55e;} .warn{color:#ef4444;}
 </style>
@@ -21,12 +20,12 @@ th,td{padding:6px;border-bottom:1px solid #475569;text-align:center;}
 <body>
 <div class="container">
 
-<h2>⛽ Fuel Ultimate</h2>
+<h2>⛽ Fuel Ultimate PRO</h2>
 
 <div class="card">
 <select id="carSelect"></select>
 <input id="newCar" placeholder="ชื่อรถ">
-<input id="tankSize" placeholder="ความจุถัง">
+<input id="tankSize" placeholder="ความจุถัง (ลิตร)">
 <button onclick="addCar()">เพิ่มรถ</button>
 </div>
 
@@ -61,7 +60,7 @@ oninput="fuelValue.innerText=this.value">
 <thead>
 <tr>
 <th>วันที่</th><th>กิโล</th><th>ขีด</th><th>ลิตร</th>
-<th>ราคา</th><th>เงิน</th><th>หัวเชื้อ</th><th>km/L</th>
+<th>ราคา</th><th>เงิน</th><th>หัวเชื้อ</th><th>km/L</th><th>จัดการ</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
@@ -74,6 +73,7 @@ oninput="fuelValue.innerText=this.value">
 let db=JSON.parse(localStorage.getItem("fuelDB"))||{};
 let cars=JSON.parse(localStorage.getItem("cars"))||{};
 let currentCar=localStorage.getItem("currentCar")||"";
+let editIndex=-1;
 
 function save(){
  localStorage.setItem("fuelDB",JSON.stringify(db));
@@ -132,42 +132,65 @@ form.onsubmit=e=>{
  e.preventDefault();
  if(!currentCar)return;
 
- let arr=db[currentCar]||[];
-
- arr.push({
+ let obj={
   date:date.value,
   km:parseVal(km.value),
   fuelLevel:parseFloat(fuelLevel.value),
   liter:parseVal(liter.value),
   price:parseVal(price.value),
   additive:parseVal(additive.value)
- });
+ };
 
- db[currentCar]=arr;
+ if(editIndex===-1){
+  db[currentCar].push(obj);
+ }else{
+  db[currentCar][editIndex]=obj;
+  editIndex=-1;
+ }
+
  save(); render();
+ form.reset();
 };
+
+function deleteRow(i){
+ if(!confirm("ลบรายการนี้?"))return;
+ db[currentCar].splice(i,1);
+ save(); render();
+}
+
+function editRow(i){
+ let d=db[currentCar][i];
+
+ date.value=d.date;
+ km.value=d.km;
+ fuelLevel.value=d.fuelLevel;
+ fuelValue.innerText=d.fuelLevel;
+ liter.value=d.liter;
+ price.value=d.price;
+ additive.value=d.additive;
+
+ editIndex=i;
+}
 
 function render(){
  let data=db[currentCar]||[];
  let table=document.getElementById("table");
  table.innerHTML="";
 
- let kmlArr=[];
- let monthMap={};
+ let kmlArr=[],monthMap={};
 
  for(let i=0;i<data.length;i++){
-  let d=data[i];
-  let prev=data[i-1];
+  let d=data[i],prev=data[i-1];
   let kml="-";
 
-  if(i>0 && !isNaN(d.km)&&!isNaN(prev.km)&&!isNaN(d.liter)){
-    let dist=d.km-prev.km;
-    kml=(dist/d.liter).toFixed(2);
-    kmlArr.push(parseFloat(kml));
+  if(i>0&&!isNaN(d.km)&&!isNaN(prev.km)&&!isNaN(d.liter)){
+   let dist=d.km-prev.km;
+   kml=(dist/d.liter).toFixed(2);
+   kmlArr.push(parseFloat(kml));
 
-    let m=d.date.slice(0,7);
-    if(!monthMap[m])monthMap[m]=[];
-    monthMap[m].push(parseFloat(kml));
+   let m=d.date.slice(0,7);
+   if(!monthMap[m])monthMap[m]=[];
+   monthMap[m].push(parseFloat(kml));
   }
 
   let total=(!isNaN(d.liter)&&!isNaN(d.price))?(d.liter*d.price).toFixed(2):"-";
@@ -182,10 +205,14 @@ function render(){
   <td>${total}</td>
   <td>${d.additive}</td>
   <td>${kml}</td>
+  <td>
+  <button onclick="editRow(${i})">✏️</button>
+  <button onclick="deleteRow(${i})">🗑️</button>
+  </td>
   </tr>`;
  }
 
- document.getElementById("avgKml").innerText =
+ document.getElementById("avgKml").innerText=
   kmlArr.length?(kmlArr.reduce((a,b)=>a+b,0)/kmlArr.length).toFixed(2):"-";
 
  let labels=[],values=[];
