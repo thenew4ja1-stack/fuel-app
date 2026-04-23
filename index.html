@@ -2,20 +2,127 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel App</title>
+<title>Fuel Tracker</title>
 
 <link rel="manifest" href="manifest.json">
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<style>
+body { font-family: Arial; padding:20px; background:#eef2f5;}
+input,button,select { padding:8px; margin:5px;}
+table { width:100%; border-collapse:collapse; margin-top:20px;}
+th,td { border:1px solid #ccc; padding:6px; text-align:center;}
+.card { background:white; padding:15px; margin-top:15px; border-radius:10px;}
+</style>
 </head>
 
 <body>
-<h2>Fuel App พร้อมใช้</h2>
+
+<h2>⛽ Fuel Tracker 🚗</h2>
+
+<div class="card">
+เลือกรถ:
+<select id="carSelect"></select>
+<input type="text" id="newCar" placeholder="เพิ่มรถ">
+<button onclick="addCar()">เพิ่ม</button>
+</div>
+
+<div class="card">
+<form id="form">
+วันที่: <input type="date" id="date">
+กิโล: <input type="text" id="km">
+ลิตร: <input type="text" id="liter">
+ราคา: <input type="text" id="price">
+เงิน: <input type="text" id="total" readonly>
+<button>บันทึก</button>
+</form>
+</div>
+
+<table>
+<thead>
+<tr><th>วันที่</th><th>กิโล</th><th>ลิตร</th><th>ราคา</th><th>เงิน</th></tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
 
 <script>
+let db = JSON.parse(localStorage.getItem("fuelDB")) || {};
+let currentCar = localStorage.getItem("currentCar") || "";
+
+function save(){
+ localStorage.setItem("fuelDB", JSON.stringify(db));
+ localStorage.setItem("currentCar", currentCar);
+}
+
+function addCar(){
+ let name = newCar.value;
+ if(!name) return;
+ db[name] = [];
+ currentCar = name;
+ save();
+ updateCarList();
+ render();
+}
+
+function updateCarList(){
+ carSelect.innerHTML="";
+ Object.keys(db).forEach(c=>{
+   let o=document.createElement("option");
+   o.value=c; o.text=c;
+   if(c===currentCar) o.selected=true;
+   carSelect.appendChild(o);
+ });
+}
+
+carSelect.onchange=()=>{
+ currentCar=carSelect.value;
+ save(); render();
+};
+
+function calc(){
+ let l=parseFloat(liter.value)||0;
+ let p=parseFloat(price.value)||0;
+ total.value=(l*p).toFixed(2);
+}
+liter.oninput=calc;
+price.oninput=calc;
+
+form.onsubmit=e=>{
+ e.preventDefault();
+ if(!currentCar){ alert("เพิ่มรถก่อน"); return;}
+ db[currentCar].push({
+   date:date.value,
+   km:km.value,
+   liter:liter.value,
+   price:price.value,
+   total:total.value
+ });
+ save();
+ form.reset();
+ render();
+};
+
+function render(){
+ if(!currentCar) return;
+ let data=db[currentCar];
+ table.innerHTML="";
+ data.forEach(d=>{
+   table.innerHTML+=`
+   <tr>
+   <td>${d.date}</td>
+   <td>${d.km}</td>
+   <td>${d.liter}</td>
+   <td>${d.price}</td>
+   <td>${d.total}</td>
+   </tr>`;
+ });
+}
+
+updateCarList();
+render();
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js');
+ navigator.serviceWorker.register('service-worker.js');
 }
 </script>
 
