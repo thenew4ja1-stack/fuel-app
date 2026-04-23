@@ -2,37 +2,30 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel System PRO FIXED</title>
+<title>Fuel App FIX FINAL</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
-.container{max-width:900px;margin:auto;padding:15px;}
-.card{background:#1e293b;padding:15px;margin-top:15px;border-radius:12px;}
-input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;}
-button{padding:6px 12px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{padding:6px;border-bottom:1px solid #475569;text-align:center;}
+body{font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0}
+.container{max-width:900px;margin:auto;padding:15px}
+.card{background:#1e293b;padding:15px;margin-top:15px;border-radius:12px}
+input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white}
+button{padding:6px 12px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:6px;border-bottom:1px solid #475569;text-align:center}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<h2>⛽ Fuel System PRO FIX</h2>
+<h2>⛽ Fuel App FIX FINAL</h2>
 
 <div class="card">
 <select id="carSelect"></select>
 <input id="newCar" placeholder="ชื่อรถ">
 <input id="tankSize" placeholder="ความจุถัง">
 <button onclick="addCar()">➕ เพิ่มรถ</button>
-
-<div id="editBox" style="display:none;margin-top:10px;">
-<input id="editCarName" placeholder="ชื่อรถใหม่">
-<input id="editTankSize" placeholder="ความจุถังใหม่">
-<button onclick="saveEditCar()">💾 บันทึกแก้ไข</button>
-</div>
-
 </div>
 
 <div class="card">
@@ -83,15 +76,15 @@ oninput="fuelValue.innerText=this.value">
 </div>
 
 <script>
-let db=JSON.parse(localStorage.getItem("fuelDB"))||{};
-let cars=JSON.parse(localStorage.getItem("cars"))||{};
-let currentCar=localStorage.getItem("currentCar")||"";
-let editIndex=-1;
+let db = JSON.parse(localStorage.getItem("fuelDB")) || {};
+let cars = JSON.parse(localStorage.getItem("cars")) || {};
+let currentCar = localStorage.getItem("currentCar");
+let editIndex = -1;
 
 function save(){
- localStorage.setItem("fuelDB",JSON.stringify(db));
- localStorage.setItem("cars",JSON.stringify(cars));
- localStorage.setItem("currentCar",currentCar);
+ localStorage.setItem("fuelDB", JSON.stringify(db));
+ localStorage.setItem("cars", JSON.stringify(cars));
+ localStorage.setItem("currentCar", currentCar);
 }
 
 function num(v){
@@ -99,17 +92,17 @@ function num(v){
  return isNaN(n)?NaN:n;
 }
 
-/* ================= INIT FIX ================= */
+/* ================= INIT FIX (ตัวจบปัญหา) ================= */
 function init(){
  let keys = Object.keys(db);
 
  if(keys.length === 0){
   currentCar = "";
-  update();
   render();
   return;
  }
 
+ // 👉 FIX: เลือกคันแรกเสมอ
  if(!currentCar || !db[currentCar]){
   currentCar = keys[0];
  }
@@ -124,57 +117,58 @@ function init(){
 function addCar(){
  let n=newCar.value.trim();
  let t=parseFloat(tankSize.value);
- if(!n||isNaN(t)) return;
 
- db[n]=[];
- cars[n]={tank:t};
- currentCar=n;
+ if(!n || isNaN(t)) return;
 
- save(); update(); render();
+ db[n] = [];
+ cars[n] = {tank:t};
 
- newCar.value=""; tankSize.value="";
+ currentCar = n;
+
+ save();
+ update();
+ render();
+
+ newCar.value="";
+ tankSize.value="";
 }
 
-/* ================= UPDATE UI ================= */
+/* ================= UPDATE ================= */
 
 function update(){
  carSelect.innerHTML="";
  chartCarSelect.innerHTML="";
 
  Object.keys(db).forEach(c=>{
-  let o1=new Option(c+" ("+cars[c].tank+"L)",c);
-  if(c===currentCar)o1.selected=true;
+  let o1=new Option(c+" ("+cars[c].tank+"L)", c);
   carSelect.appendChild(o1);
 
-  let o2=new Option(c,c);
+  let o2=new Option(c, c);
   chartCarSelect.appendChild(o2);
  });
 
- carSelect.value=currentCar;
- chartCarSelect.value=currentCar;
+ carSelect.value = currentCar;
+ chartCarSelect.value = currentCar;
 }
 
-/* ================= CHANGE CAR ================= */
+/* ================= EVENTS ================= */
 
 carSelect.onchange=()=>{
- currentCar=carSelect.value;
- save(); render();
+ currentCar = carSelect.value;
+ save();
+ render();
 };
 
 chartCarSelect.onchange=()=>{
- currentCar=chartCarSelect.value;
- save(); render();
+ currentCar = chartCarSelect.value;
+ save();
+ render();
 };
 
 /* ================= FORM ================= */
 
-liter.oninput=()=>{
- total.value=(num(liter.value)*num(price.value)).toFixed(2);
-};
-
-price.oninput=()=>{
- total.value=(num(liter.value)*num(price.value)).toFixed(2);
-};
+liter.oninput=()=> total.value=(num(liter.value)*num(price.value)).toFixed(2);
+price.oninput=()=> total.value=(num(liter.value)*num(price.value)).toFixed(2);
 
 form.onsubmit=e=>{
  e.preventDefault();
@@ -193,14 +187,12 @@ form.onsubmit=e=>{
   additive:num(additive.value)||0
  };
 
- if(editIndex===-1){
-  db[currentCar].push(obj);
- }else{
-  db[currentCar][editIndex]=obj;
-  editIndex=-1;
- }
+ if(!db[currentCar]) db[currentCar]=[];
 
- save(); render();
+ db[currentCar].push(obj);
+
+ save();
+ render();
 
  date.valueAsDate=new Date();
  km.value=""; liter.value=""; price.value=""; additive.value="";
@@ -209,36 +201,20 @@ form.onsubmit=e=>{
 
 /* ================= TABLE ================= */
 
-function editRow(i){
- let d=db[currentCar][i];
- date.value=d.date;
- km.value=d.km;
- fuelLevel.value=d.fuelLevel;
- fuelValue.innerText=d.fuelLevel;
- liter.value=d.liter;
- price.value=d.price;
- additive.value=d.additive;
- editIndex=i;
-}
-
-function deleteRow(i){
- if(!confirm("ลบ?")) return;
- db[currentCar].splice(i,1);
- save(); render();
-}
-
-/* ================= RENDER ================= */
-
 function render(){
- let data=db[currentCar]||[];
 
- let table=document.getElementById("table");
- let noData=document.getElementById("noData");
+ let data = db[currentCar] || [];
 
- table.innerHTML="";
- noData.innerHTML="";
+ carSelect.value = currentCar;
+ chartCarSelect.value = currentCar;
 
- if(!currentCar || data.length===0){
+ let table = document.getElementById("table");
+ let noData = document.getElementById("noData");
+
+ table.innerHTML = "";
+ noData.innerHTML = "";
+
+ if(!currentCar || data.length === 0){
   drawChart([],[],noData,currentCar);
   return;
  }
@@ -259,10 +235,6 @@ function render(){
   <td>${d.price||"-"}</td>
   <td>${total}</td>
   <td>${d.additive||"-"}</td>
-  <td>
-  <button onclick="editRow(${i})">✏️</button>
-  <button onclick="deleteRow(${i})">🗑️</button>
-  </td>
   </tr>`;
  }
 
@@ -270,8 +242,7 @@ function render(){
  let values=[];
 
  for(let i=1;i<data.length;i++){
-  let diff=data[i].km-data[i-1].km;
-
+  let diff = data[i].km - data[i-1].km;
   if(isFinite(diff)){
    labels.push(data[i].date);
    values.push(diff);
@@ -287,7 +258,7 @@ function drawChart(labels,data,noData,name){
 
  let ctx=document.getElementById("chart").getContext("2d");
 
- if(window.chart)window.chart.destroy();
+ if(window.chart) window.chart.destroy();
 
  if(!labels || labels.length===0){
   noData.innerHTML="⚠️ ยังไม่มีข้อมูลกราฟ";
