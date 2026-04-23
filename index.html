@@ -4,265 +4,212 @@
 <meta charset="UTF-8">
 <title>Fuel Ultimate FINAL</title>
 
-<link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { font-family: Arial; padding:20px; background:#eef2f5;}
-input,button,select { padding:8px; margin:5px;}
-table { width:100%; border-collapse:collapse; margin-top:20px;}
-th,td { border:1px solid #ccc; padding:6px; text-align:center;}
-.card { background:white; padding:15px; margin-top:15px; border-radius:10px;}
-.warn { color:red; font-weight:bold;}
-.good { color:green; font-weight:bold;}
+body {font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
+.container{max-width:900px;margin:auto;padding:15px;}
+.card{background:#1e293b;padding:15px;margin-top:15px;border-radius:12px;}
+input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;}
+button{padding:8px 15px;background:#38bdf8;border:none;border-radius:8px;font-weight:bold;}
+table{width:100%;margin-top:10px;border-collapse:collapse;}
+th,td{padding:6px;border-bottom:1px solid #475569;text-align:center;}
+.good{color:#22c55e;} .warn{color:#ef4444;}
 </style>
 </head>
 
 <body>
+<div class="container">
 
-<h2>⛽ Fuel Ultimate 🚗</h2>
+<h2>⛽ Fuel Ultimate</h2>
 
 <div class="card">
-เลือกรถ:
 <select id="carSelect"></select>
-<input type="text" id="newCar" placeholder="ชื่อรถ">
-ความจุถัง:
-<input type="text" id="tankSize" placeholder="ลิตร">
-<button onclick="addCar()">เพิ่ม</button>
+<input id="newCar" placeholder="ชื่อรถ">
+<input id="tankSize" placeholder="ความจุถัง">
+<button onclick="addCar()">เพิ่มรถ</button>
 </div>
 
 <div class="card">
 <form id="form">
-
-วันที่: <input type="date" id="date">
-
-กิโล:
-<input type="text" id="km" placeholder="544.09 หรือ -">
+<input type="date" id="date">
+<input id="km" placeholder="กิโล หรือ -">
 
 ขีด:
 <input type="range" id="fuelLevel" min="1" max="5" step="0.5" value="3"
 oninput="fuelValue.innerText=this.value">
 <span id="fuelValue">3</span>
 
-กี่ลิตร:
-<input type="text" id="liter" placeholder="เช่น 1.5">
-
-ราคา:
-<input type="text" id="price" placeholder="เช่น 31.2">
-
-เงิน:
-<input type="text" id="total" readonly>
-
-หัวเชื้อ (ลิตร):
-<input type="text" id="additive" placeholder="เช่น 0.2">
-
+<input id="liter" placeholder="ลิตร">
+<input id="price" placeholder="ราคา">
+<input id="total" placeholder="เงิน" readonly>
+<input id="additive" placeholder="หัวเชื้อ (ลิตร)">
 <button>บันทึก</button>
 </form>
 </div>
 
 <div class="card">
-<h3>📊 วิเคราะห์</h3>
-km/L เฉลี่ย: <span id="avgKml">-</span><br>
-ราคาน้ำมัน: <span id="priceStatus">-</span><br>
-แจ้งเตือน: <span id="alertFuel">-</span>
+📊 km/L เฉลี่ย: <span id="avgKml">-</span>
 </div>
 
 <div class="card">
 <canvas id="chart"></canvas>
 </div>
 
+<div class="card">
 <table>
 <thead>
 <tr>
-<th>วันที่</th><th>km/L</th><th>ราคา</th><th>สถานะ</th>
+<th>วันที่</th><th>กิโล</th><th>ขีด</th><th>ลิตร</th>
+<th>ราคา</th><th>เงิน</th><th>หัวเชื้อ</th><th>km/L</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
 </table>
+</div>
+
+</div>
 
 <script>
-let db = JSON.parse(localStorage.getItem("fuelDB")) || {};
-let cars = JSON.parse(localStorage.getItem("cars")) || {};
-let currentCar = localStorage.getItem("currentCar") || "";
+let db=JSON.parse(localStorage.getItem("fuelDB"))||{};
+let cars=JSON.parse(localStorage.getItem("cars"))||{};
+let currentCar=localStorage.getItem("currentCar")||"";
 
 function save(){
- localStorage.setItem("fuelDB", JSON.stringify(db));
- localStorage.setItem("cars", JSON.stringify(cars));
- localStorage.setItem("currentCar", currentCar);
+ localStorage.setItem("fuelDB",JSON.stringify(db));
+ localStorage.setItem("cars",JSON.stringify(cars));
+ localStorage.setItem("currentCar",currentCar);
 }
 
 function parseVal(v){
- if(v === "" || v === "-") return "-";
- let num = parseFloat(v);
- return isNaN(num) ? "-" : num;
+ if(v===""||v==="-" ) return "-";
+ let n=parseFloat(v);
+ return isNaN(n)?"-":n;
 }
 
-function allowDecimal(input){
- input.addEventListener("input", function(){
-   let val = this.value;
-
-   if(!/^[-0-9.]*$/.test(val)){
-     this.value = val.slice(0, -1);
-     return;
-   }
-
-   if((val.match(/\./g) || []).length > 1){
-     this.value = val.slice(0, -1);
-     return;
-   }
-
-   if(val.includes("-") && val.indexOf("-") !== 0){
-     this.value = val.replace("-", "");
-   }
- });
+function allow(input){
+ input.oninput=()=>{
+  let v=input.value;
+  if(!/^[-0-9.]*$/.test(v)) input.value=v.slice(0,-1);
+  if((v.match(/\./g)||[]).length>1) input.value=v.slice(0,-1);
+  if(v.includes("-")&&v.indexOf("-")!==0) input.value=v.replace("-","");
+ };
 }
 
-allowDecimal(km);
-allowDecimal(liter);
-allowDecimal(price);
-allowDecimal(additive);
-allowDecimal(tankSize);
+["km","liter","price","additive","tankSize"].forEach(id=>allow(window[id]));
 
 function addCar(){
- let name=newCar.value.trim();
- let tank=parseFloat(tankSize.value);
-
- if(!name || isNaN(tank)) return;
-
- db[name]=[];
- cars[name]={tank:tank};
- currentCar=name;
-
- save();
- updateCarList();
- render();
+ let n=newCar.value.trim();
+ let t=parseFloat(tankSize.value);
+ if(!n||isNaN(t))return;
+ db[n]=[]; cars[n]={tank:t}; currentCar=n;
+ save(); update(); render();
 }
 
-function updateCarList(){
+function update(){
  carSelect.innerHTML="";
  Object.keys(db).forEach(c=>{
-   let o=document.createElement("option");
-   o.value=c;
-   o.text=c + " (" + cars[c].tank + "L)";
-   if(c===currentCar)o.selected=true;
-   carSelect.appendChild(o);
+  let o=document.createElement("option");
+  o.value=c;
+  o.text=c+" ("+cars[c].tank+"L)";
+  if(c===currentCar)o.selected=true;
+  carSelect.appendChild(o);
  });
 }
 
-carSelect.onchange=()=>{
- currentCar=carSelect.value;
- save(); render();
-};
+carSelect.onchange=()=>{currentCar=carSelect.value;save();render();};
+
+liter.oninput=calc;
+price.oninput=calc;
 
 function calc(){
  let l=parseFloat(liter.value)||0;
  let p=parseFloat(price.value)||0;
  total.value=(l*p).toFixed(2);
 }
-liter.oninput=calc;
-price.oninput=calc;
 
 form.onsubmit=e=>{
  e.preventDefault();
-
- if(!currentCar) return;
+ if(!currentCar)return;
 
  let arr=db[currentCar]||[];
 
  arr.push({
-   date:date.value,
-   km:parseVal(km.value),
-   fuelLevel:parseFloat(fuelLevel.value),
-   liter:parseVal(liter.value),
-   price:parseVal(price.value),
-   additive:parseVal(additive.value)
+  date:date.value,
+  km:parseVal(km.value),
+  fuelLevel:parseFloat(fuelLevel.value),
+  liter:parseVal(liter.value),
+  price:parseVal(price.value),
+  additive:parseVal(additive.value)
  });
 
  db[currentCar]=arr;
- save();
- render();
+ save(); render();
 };
-
-function avg(arr){
- return arr.reduce((a,b)=>a+b,0)/arr.length;
-}
 
 function render(){
  let data=db[currentCar]||[];
  let table=document.getElementById("table");
  table.innerHTML="";
 
- let kmlArr=[], priceArr=[], labels=[], kmlData=[];
+ let kmlArr=[];
+ let monthMap={};
 
- for(let i=1;i<data.length;i++){
-   let d=data[i];
-   let prev=data[i-1];
+ for(let i=0;i<data.length;i++){
+  let d=data[i];
+  let prev=data[i-1];
+  let kml="-";
 
-   if(isNaN(d.km)||isNaN(prev.km)||isNaN(d.liter)) continue;
+  if(i>0 && !isNaN(d.km)&&!isNaN(prev.km)&&!isNaN(d.liter)){
+    let dist=d.km-prev.km;
+    kml=(dist/d.liter).toFixed(2);
+    kmlArr.push(parseFloat(kml));
 
-   let dist=d.km-prev.km;
-   let kml=dist/d.liter;
+    let m=d.date.slice(0,7);
+    if(!monthMap[m])monthMap[m]=[];
+    monthMap[m].push(parseFloat(kml));
+  }
 
-   kmlArr.push(kml);
-   priceArr.push(d.price);
+  let total=(!isNaN(d.liter)&&!isNaN(d.price))?(d.liter*d.price).toFixed(2):"-";
 
-   labels.push(d.date);
-   kmlData.push(kml.toFixed(2));
-
-   let status = d.price < avg(priceArr) ? "ถูก" : "แพง";
-
-   table.innerHTML+=`
-   <tr>
-   <td>${d.date}</td>
-   <td>${kml.toFixed(2)}</td>
-   <td>${d.price}</td>
-   <td class="${status==='ถูก'?'good':'warn'}">${status}</td>
-   </tr>`;
+  table.innerHTML+=`
+  <tr>
+  <td>${d.date||"-"}</td>
+  <td>${d.km}</td>
+  <td>${d.fuelLevel}</td>
+  <td>${d.liter}</td>
+  <td>${d.price}</td>
+  <td>${total}</td>
+  <td>${d.additive}</td>
+  <td>${kml}</td>
+  </tr>`;
  }
 
- let avgKml = kmlArr.length ? avg(kmlArr).toFixed(2) : "-";
- document.getElementById("avgKml").innerText = avgKml;
+ document.getElementById("avgKml").innerText =
+  kmlArr.length?(kmlArr.reduce((a,b)=>a+b,0)/kmlArr.length).toFixed(2):"-";
 
- let avgPrice = priceArr.length ? avg(priceArr) : 0;
- let lastPrice = priceArr[priceArr.length-1] || 0;
-
- document.getElementById("priceStatus").innerHTML =
-   lastPrice < avgPrice ? "<span class='good'>ถูก</span>" :
-   "<span class='warn'>แพง</span>";
-
- let last = data[data.length-1];
- let alertMsg = "-";
- if(last && last.fuelLevel <= 2){
-   alertMsg = "⚠️ ควรเติมน้ำมันแล้ว";
+ let labels=[],values=[];
+ for(let m in monthMap){
+  let avg=monthMap[m].reduce((a,b)=>a+b,0)/monthMap[m].length;
+  labels.push(m);
+  values.push(avg.toFixed(2));
  }
- document.getElementById("alertFuel").innerText = alertMsg;
 
- drawChart(labels, kmlData);
+ drawChart(labels,values);
 }
 
 function drawChart(labels,data){
  let ctx=document.getElementById("chart");
+ if(window.chart)window.chart.destroy();
 
- if(window.myChart) window.myChart.destroy();
-
- window.myChart=new Chart(ctx,{
-   type:'line',
-   data:{
-     labels:labels,
-     datasets:[{
-       label:'km/L',
-       data:data
-     }]
-   }
+ window.chart=new Chart(ctx,{
+  type:'line',
+  data:{labels:labels,datasets:[{label:'km/L ต่อเดือน',data:data}]}
  });
 }
 
-updateCarList();
+update();
 render();
-
-if ('serviceWorker' in navigator) {
- navigator.serviceWorker.register('service-worker.js');
-}
 </script>
 
 </body>
