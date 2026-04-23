@@ -2,318 +2,176 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel System PRO FIXED</title>
+<title>Fuel System - Trip Reset Mode</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 body {font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
 .container{max-width:900px;margin:auto;padding:15px;}
 .card{background:#1e293b;padding:15px;margin-top:15px;border-radius:12px;}
-input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;}
-button{padding:6px 12px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer;}
+input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;width:140px;}
+button{padding:8px 15px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer;font-weight:bold;}
 table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{padding:6px;border-bottom:1px solid #475569;text-align:center;}
+th,td{padding:10px;border-bottom:1px solid #475569;text-align:center;}
 </style>
 </head>
-
 <body>
+
 <div class="container">
+  <h2>⛽ Fuel App (Trip 0 Mode)</h2>
+  <p style="color:#94a3b8; font-size:0.9em;">*กรอกระยะทางที่วิ่งได้จริงจาก Trip Meter (ที่เซ็ต 0 ไว้)</p>
 
-<h2>⛽ Fuel System PRO FIX</h2>
+  <div class="card">
+    <select id="carSelect"></select>
+    <input id="newCar" placeholder="ชื่อรถ">
+    <button onclick="addCar()">➕ เพิ่มรถ</button>
+  </div>
 
-<div class="card">
-<select id="carSelect"></select>
-<input id="newCar" placeholder="ชื่อรถ">
-<input id="tankSize" placeholder="ความจุถัง">
-<button onclick="addCar()">➕ เพิ่มรถ</button>
+  <div class="card">
+    <form id="form">
+      <input type="date" id="date">
+      <input id="km" type="number" step="any" placeholder="ระยะทางที่วิ่งได้ (km)">
+      <input id="liter" type="number" step="any" placeholder="จำนวนลิตร">
+      <input id="price" type="number" step="any" placeholder="ราคาน้ำมัน">
+      <button type="submit">บันทึก</button>
+    </form>
+  </div>
 
-<div id="editBox" style="display:none;margin-top:10px;">
-<input id="editCarName" placeholder="ชื่อรถใหม่">
-<input id="editTankSize" placeholder="ความจุถังใหม่">
-<button onclick="saveEditCar()">💾 บันทึกแก้ไข</button>
-</div>
+  <div class="card" style="height:350px;">
+    <canvas id="chart"></canvas>
+  </div>
 
-</div>
-
-<div class="card">
-<form id="form">
-<input type="date" id="date">
-<input id="km" placeholder="กิโล">
-
-<input type="range" id="fuelLevel" min="1" max="5" step="0.5" value="3"
-oninput="fuelValue.innerText=this.value">
-<span id="fuelValue">3</span>
-
-<input id="liter" placeholder="ลิตร">
-<input id="price" placeholder="ราคา">
-<input id="total" readonly>
-<input id="additive" placeholder="หัวเชื้อ">
-<button>บันทึก</button>
-</form>
-</div>
-
-<div class="card">
-<select id="chartCarSelect"></select>
-</div>
-
-<div class="card" style="height:320px;">
-<canvas id="chart"></canvas>
-<div id="noData"></div>
-</div>
-
-<div class="card">
-<table>
-<thead>
-<tr>
-<th>วันที่</th>
-<th>รถ</th>
-<th>กิโล</th>
-<th>ขีด</th>
-<th>ลิตร</th>
-<th>ราคา</th>
-<th>เงิน</th>
-<th>หัวเชื้อ</th>
-<th>จัดการ</th>
-</tr>
-</thead>
-<tbody id="table"></tbody>
-</table>
-</div>
-
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>วันที่</th>
+          <th>ระยะทาง (Trip)</th>
+          <th>ลิตร</th>
+          <th>ยอดเงิน</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody id="table"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
-let db=JSON.parse(localStorage.getItem("fuelDB"))||{};
-let cars=JSON.parse(localStorage.getItem("cars"))||{};
-let currentCar=localStorage.getItem("currentCar")||"";
-let editIndex=-1;
+let db = JSON.parse(localStorage.getItem("fuelDB")) || {};
+let currentCar = localStorage.getItem("currentCar") || "";
+let myChart = null;
+let editIndex = -1;
 
-function save(){
- localStorage.setItem("fuelDB",JSON.stringify(db));
- localStorage.setItem("cars",JSON.stringify(cars));
- localStorage.setItem("currentCar",currentCar);
+function init() {
+    let keys = Object.keys(db);
+    if(keys.length > 0 && !currentCar) currentCar = keys[0];
+    date.valueAsDate = new Date();
+    updateUI();
+    render();
 }
 
-function num(v){
- let n=parseFloat(v);
- return isNaN(n)?NaN:n;
+function save() {
+    localStorage.setItem("fuelDB", JSON.stringify(db));
+    localStorage.setItem("currentCar", currentCar);
 }
 
-/* ================= INIT FIX ================= */
-function init(){
- let keys = Object.keys(db);
-
- if(keys.length === 0){
-  currentCar = "";
-  update();
-  render();
-  return;
- }
-
- if(!currentCar || !db[currentCar]){
-  currentCar = keys[0];
- }
-
- save();
- update();
- render();
+function addCar() {
+    let n = newCar.value.trim();
+    if(!n) return;
+    if(!db[n]) db[n] = [];
+    currentCar = n;
+    save(); updateUI(); render();
+    newCar.value = "";
 }
 
-/* ================= CAR ================= */
-
-function addCar(){
- let n=newCar.value.trim();
- let t=parseFloat(tankSize.value);
- if(!n||isNaN(t)) return;
-
- db[n]=[];
- cars[n]={tank:t};
- currentCar=n;
-
- save(); update(); render();
-
- newCar.value=""; tankSize.value="";
+function updateUI() {
+    carSelect.innerHTML = "";
+    Object.keys(db).forEach(c => carSelect.add(new Option(c, c)));
+    carSelect.value = currentCar;
 }
 
-/* ================= UPDATE UI ================= */
+carSelect.onchange = () => { currentCar = carSelect.value; save(); render(); };
 
-function update(){
- carSelect.innerHTML="";
- chartCarSelect.innerHTML="";
+form.onsubmit = e => {
+    e.preventDefault();
+    if(!currentCar) return alert("เพิ่มรถก่อนครับ");
+    
+    let obj = {
+        date: date.value,
+        km: parseFloat(km.value) || 0, // นี่คือระยะทางที่วิ่งได้จริง (Trip)
+        liter: parseFloat(liter.value) || 0,
+        price: parseFloat(price.value) || 0
+    };
 
- Object.keys(db).forEach(c=>{
-  let o1=new Option(c+" ("+cars[c].tank+"L)",c);
-  if(c===currentCar)o1.selected=true;
-  carSelect.appendChild(o1);
+    if(editIndex === -1) db[currentCar].push(obj);
+    else { db[currentCar][editIndex] = obj; editIndex = -1; }
 
-  let o2=new Option(c,c);
-  chartCarSelect.appendChild(o2);
- });
-
- carSelect.value=currentCar;
- chartCarSelect.value=currentCar;
-}
-
-/* ================= CHANGE CAR ================= */
-
-carSelect.onchange=()=>{
- currentCar=carSelect.value;
- save(); render();
+    save(); render();
+    km.value = ""; liter.value = ""; price.value = "";
 };
 
-chartCarSelect.onchange=()=>{
- currentCar=chartCarSelect.value;
- save(); render();
-};
-
-/* ================= FORM ================= */
-
-liter.oninput=()=>{
- total.value=(num(liter.value)*num(price.value)).toFixed(2);
-};
-
-price.oninput=()=>{
- total.value=(num(liter.value)*num(price.value)).toFixed(2);
-};
-
-form.onsubmit=e=>{
- e.preventDefault();
-
- if(!currentCar || !date.value || isNaN(num(km.value)) || isNaN(num(liter.value))){
-  alert("กรอกข้อมูลให้ครบ");
-  return;
- }
-
- let obj={
-  date:date.value,
-  km:num(km.value),
-  fuelLevel:parseFloat(fuelLevel.value),
-  liter:num(liter.value),
-  price:num(price.value)||0,
-  additive:num(additive.value)||0
- };
-
- if(editIndex===-1){
-  db[currentCar].push(obj);
- }else{
-  db[currentCar][editIndex]=obj;
-  editIndex=-1;
- }
-
- save(); render();
-
- date.valueAsDate=new Date();
- km.value=""; liter.value=""; price.value=""; additive.value="";
- total.value=""; fuelLevel.value=3; fuelValue.innerText=3;
-};
-
-/* ================= TABLE ================= */
-
-function editRow(i){
- let d=db[currentCar][i];
- date.value=d.date;
- km.value=d.km;
- fuelLevel.value=d.fuelLevel;
- fuelValue.innerText=d.fuelLevel;
- liter.value=d.liter;
- price.value=d.price;
- additive.value=d.additive;
- editIndex=i;
+function deleteRow(i) {
+    if(confirm("ลบข้อมูล?")) { db[currentCar].splice(i, 1); save(); render(); }
 }
 
-function deleteRow(i){
- if(!confirm("ลบ?")) return;
- db[currentCar].splice(i,1);
- save(); render();
+function render() {
+    let data = db[currentCar] || [];
+    let tableBody = document.getElementById("table");
+    tableBody.innerHTML = "";
+    
+    // เรียงวันที่
+    data.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // 1. แสดงตาราง
+    data.forEach((d, i) => {
+        tableBody.innerHTML += `
+            <tr>
+                <td>${d.date}</td>
+                <td>${d.km} กม.</td>
+                <td>${d.liter} ลิตร</td>
+                <td>${(d.liter * d.price).toFixed(2)}</td>
+                <td><button onclick="deleteRow(${i})" style="background:#ef4444">🗑️</button></td>
+            </tr>`;
+    });
+
+    // 2. ลอจิกใหม่: รวมผลรวม KM รายสัปดาห์ (โหมด Trip Reset)
+    let weeklyTotals = {};
+    data.forEach(d => {
+        let dt = new Date(d.date);
+        let label = `${dt.getMonth()+1}.${Math.ceil(dt.getDate()/7)}`; // เดือน.อาทิตย์
+        
+        // เอาเลข KM ที่กรอก มาบวกสะสมได้เลย เพราะคุณ reset 0 มาแล้ว
+        weeklyTotals[label] = (weeklyTotals[label] || 0) + d.km;
+    });
+
+    let labels = Object.keys(weeklyTotals).sort((a, b) => parseFloat(a) - parseFloat(b));
+    let values = labels.map(l => weeklyTotals[l]);
+
+    drawChart(labels, values);
 }
 
-/* ================= RENDER ================= */
-
-function render(){
- let data=db[currentCar]||[];
-
- let table=document.getElementById("table");
- let noData=document.getElementById("noData");
-
- table.innerHTML="";
- noData.innerHTML="";
-
- if(!currentCar || data.length===0){
-  drawChart([],[],noData,currentCar);
-  return;
- }
-
- data.sort((a,b)=>new Date(a.date)-new Date(b.date));
-
- for(let i=0;i<data.length;i++){
-  let d=data[i];
-  let total=(d.liter*d.price||0).toFixed(2);
-
-  table.innerHTML+=`
-  <tr>
-  <td>${d.date}</td>
-  <td>${currentCar}</td>
-  <td>${d.km}</td>
-  <td>${d.fuelLevel}</td>
-  <td>${d.liter}</td>
-  <td>${d.price||"-"}</td>
-  <td>${total}</td>
-  <td>${d.additive||"-"}</td>
-  <td>
-  <button onclick="editRow(${i})">✏️</button>
-  <button onclick="deleteRow(${i})">🗑️</button>
-  </td>
-  </tr>`;
- }
-
- let labels=[];
- let values=[];
-
- for(let i=1;i<data.length;i++){
-  let diff=data[i].km-data[i-1].km;
-
-  if(isFinite(diff)){
-   labels.push(data[i].date);
-   values.push(diff);
-  }
- }
-
- drawChart(labels,values,noData,currentCar);
+function drawChart(labels, values) {
+    let ctx = document.getElementById("chart").getContext("2d");
+    if(myChart) myChart.destroy();
+    myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'ระยะทางรวมต่อสัปดาห์ (km)',
+                data: values,
+                backgroundColor: '#38bdf8'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
 }
 
-/* ================= CHART ================= */
-
-function drawChart(labels,data,noData,name){
-
- let ctx=document.getElementById("chart").getContext("2d");
-
- if(window.chart)window.chart.destroy();
-
- if(!labels || labels.length===0){
-  noData.innerHTML="⚠️ ยังไม่มีข้อมูลกราฟ";
-  return;
- }
-
- window.chart=new Chart(ctx,{
-  type:'bar',
-  data:{
-   labels:labels,
-   datasets:[{
-    label:'km ('+name+')',
-    data:data,
-    backgroundColor:'#38bdf8'
-   }]
-  },
-  options:{
-   responsive:true,
-   maintainAspectRatio:false
-  }
- });
-}
-
-/* START */
 init();
 </script>
-
 </body>
 </html>
