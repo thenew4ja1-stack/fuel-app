@@ -2,52 +2,63 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel System - Trip Reset Mode</title>
+<title>Fuel System PRO - Trip Mode</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body {font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
-.container{max-width:900px;margin:auto;padding:15px;}
+.container{max-width:1000px;margin:auto;padding:15px;}
 .card{background:#1e293b;padding:15px;margin-top:15px;border-radius:12px;}
-input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;width:140px;}
-button{padding:8px 15px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer;font-weight:bold;}
+input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;width:130px;}
+button{padding:8px 12px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer;font-weight:bold;}
 table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{padding:10px;border-bottom:1px solid #475569;text-align:center;}
+th,td{padding:8px;border-bottom:1px solid #475569;text-align:center;font-size: 0.9em;}
+.btn-del{background:#ef4444; color:white;}
+.btn-edit{background:#f59e0b; color:white;}
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h2>⛽ Fuel App (Trip 0 Mode)</h2>
-  <p style="color:#94a3b8; font-size:0.9em;">*กรอกระยะทางที่วิ่งได้จริงจาก Trip Meter (ที่เซ็ต 0 ไว้)</p>
+  <h2>⛽ Fuel System PRO (Trip Reset Mode)</h2>
 
   <div class="card">
     <select id="carSelect"></select>
     <input id="newCar" placeholder="ชื่อรถ">
+    <input id="tankSize" placeholder="ความจุถัง">
     <button onclick="addCar()">➕ เพิ่มรถ</button>
   </div>
 
   <div class="card">
     <form id="form">
       <input type="date" id="date">
-      <input id="km" type="number" step="any" placeholder="ระยะทางที่วิ่งได้ (km)">
-      <input id="liter" type="number" step="any" placeholder="จำนวนลิตร">
-      <input id="price" type="number" step="any" placeholder="ราคาน้ำมัน">
+      <input id="km" placeholder="กิโล (Trip)">
+      <input type="range" id="fuelLevel" min="1" max="5" step="0.5" value="3" oninput="fuelValue.innerText=this.value">
+      <span id="fuelValue">3</span> ขีด
+      <br>
+      <input id="liter" placeholder="ลิตร">
+      <input id="price" placeholder="ราคา">
+      <input id="additive" placeholder="หัวเชื้อ">
       <button type="submit">บันทึก</button>
     </form>
   </div>
 
-  <div class="card" style="height:350px;">
+  <div class="card" style="height:320px;">
     <canvas id="chart"></canvas>
   </div>
 
   <div class="card">
+    <select id="chartCarSelect" style="float:right"></select>
     <table>
       <thead>
         <tr>
           <th>วันที่</th>
-          <th>ระยะทาง (Trip)</th>
+          <th>รถ</th>
+          <th>กิโล</th>
+          <th>ขีด</th>
           <th>ลิตร</th>
-          <th>ยอดเงิน</th>
+          <th>ราคา</th>
+          <th>เงิน</th>
+          <th>หัวเชื้อ</th>
           <th>จัดการ</th>
         </tr>
       </thead>
@@ -58,6 +69,7 @@ th,td{padding:10px;border-bottom:1px solid #475569;text-align:center;}
 
 <script>
 let db = JSON.parse(localStorage.getItem("fuelDB")) || {};
+let cars = JSON.parse(localStorage.getItem("cars")) || {};
 let currentCar = localStorage.getItem("currentCar") || "";
 let myChart = null;
 let editIndex = -1;
@@ -72,46 +84,69 @@ function init() {
 
 function save() {
     localStorage.setItem("fuelDB", JSON.stringify(db));
+    localStorage.setItem("cars", JSON.stringify(cars));
     localStorage.setItem("currentCar", currentCar);
 }
 
 function addCar() {
     let n = newCar.value.trim();
-    if(!n) return;
+    let t = parseFloat(tankSize.value);
+    if(!n || isNaN(t)) return;
     if(!db[n]) db[n] = [];
+    cars[n] = {tank:t};
     currentCar = n;
     save(); updateUI(); render();
-    newCar.value = "";
+    newCar.value=""; tankSize.value="";
 }
 
 function updateUI() {
     carSelect.innerHTML = "";
-    Object.keys(db).forEach(c => carSelect.add(new Option(c, c)));
+    chartCarSelect.innerHTML = "";
+    Object.keys(db).forEach(c => {
+        carSelect.add(new Option(c, c));
+        chartCarSelect.add(new Option(c, c));
+    });
     carSelect.value = currentCar;
+    chartCarSelect.value = currentCar;
 }
 
 carSelect.onchange = () => { currentCar = carSelect.value; save(); render(); };
+chartCarSelect.onchange = () => { currentCar = chartCarSelect.value; save(); render(); };
 
 form.onsubmit = e => {
     e.preventDefault();
-    if(!currentCar) return alert("เพิ่มรถก่อนครับ");
+    if(!currentCar) return alert("เพิ่มรถก่อน");
     
     let obj = {
         date: date.value,
-        km: parseFloat(km.value) || 0, // นี่คือระยะทางที่วิ่งได้จริง (Trip)
+        km: parseFloat(km.value) || 0,
+        fuelLevel: parseFloat(fuelLevel.value),
         liter: parseFloat(liter.value) || 0,
-        price: parseFloat(price.value) || 0
+        price: parseFloat(price.value) || 0,
+        additive: additive.value || "-"
     };
 
     if(editIndex === -1) db[currentCar].push(obj);
     else { db[currentCar][editIndex] = obj; editIndex = -1; }
 
     save(); render();
-    km.value = ""; liter.value = ""; price.value = "";
+    km.value = ""; liter.value = ""; price.value = ""; additive.value = "";
 };
 
 function deleteRow(i) {
-    if(confirm("ลบข้อมูล?")) { db[currentCar].splice(i, 1); save(); render(); }
+    if(confirm("ลบ?")) { db[currentCar].splice(i, 1); save(); render(); }
+}
+
+function editRow(i) {
+    let d = db[currentCar][i];
+    date.value = d.date;
+    km.value = d.km;
+    fuelLevel.value = d.fuelLevel;
+    fuelValue.innerText = d.fuelLevel;
+    liter.value = d.liter;
+    price.value = d.price;
+    additive.value = d.additive;
+    editIndex = i;
 }
 
 function render() {
@@ -119,32 +154,41 @@ function render() {
     let tableBody = document.getElementById("table");
     tableBody.innerHTML = "";
     
-    // เรียงวันที่
     data.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // 1. แสดงตาราง
+    // 1. วาดตารางแบบเดิม (ครบทุกช่อง)
     data.forEach((d, i) => {
+        let total = (d.liter * d.price).toFixed(2);
         tableBody.innerHTML += `
             <tr>
                 <td>${d.date}</td>
-                <td>${d.km} กม.</td>
-                <td>${d.liter} ลิตร</td>
-                <td>${(d.liter * d.price).toFixed(2)}</td>
-                <td><button onclick="deleteRow(${i})" style="background:#ef4444">🗑️</button></td>
+                <td>${currentCar}</td>
+                <td>${d.km}</td>
+                <td>${d.fuelLevel}</td>
+                <td>${d.liter}</td>
+                <td>${d.price}</td>
+                <td>${total}</td>
+                <td>${d.additive}</td>
+                <td>
+                    <button class="btn-edit" onclick="editRow(${i})">✏️</button>
+                    <button class="btn-del" onclick="deleteRow(${i})">🗑️</button>
+                </td>
             </tr>`;
     });
 
-    // 2. ลอจิกใหม่: รวมผลรวม KM รายสัปดาห์ (โหมด Trip Reset)
+    // 2. คำนวณกราฟแบบ Trip Sum (รายสัปดาห์)
     let weeklyTotals = {};
     data.forEach(d => {
         let dt = new Date(d.date);
-        let label = `${dt.getMonth()+1}.${Math.ceil(dt.getDate()/7)}`; // เดือน.อาทิตย์
-        
-        // เอาเลข KM ที่กรอก มาบวกสะสมได้เลย เพราะคุณ reset 0 มาแล้ว
+        let label = `${dt.getMonth()+1}.${Math.ceil(dt.getDate()/7)}`; 
         weeklyTotals[label] = (weeklyTotals[label] || 0) + d.km;
     });
 
-    let labels = Object.keys(weeklyTotals).sort((a, b) => parseFloat(a) - parseFloat(b));
+    let labels = Object.keys(weeklyTotals).sort((a, b) => {
+        let [m1, w1] = a.split('.').map(Number);
+        let [m2, w2] = b.split('.').map(Number);
+        return m1 !== m2 ? m1 - m2 : w1 - w2;
+    });
     let values = labels.map(l => weeklyTotals[l]);
 
     drawChart(labels, values);
@@ -158,7 +202,7 @@ function drawChart(labels, values) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'ระยะทางรวมต่อสัปดาห์ (km)',
+                label: 'ระยะทางสะสมรายสัปดาห์ (km)',
                 data: values,
                 backgroundColor: '#38bdf8'
             }]
