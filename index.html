@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel Ultimate FINAL</title>
+<title>Fuel Ultimate FINAL FIX</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -19,7 +19,7 @@ th,td{padding:6px;border-bottom:1px solid #475569;text-align:center;}
 <body>
 <div class="container">
 
-<h2>⛽ Fuel Ultimate</h2>
+<h2>⛽ Fuel Ultimate (FIXED)</h2>
 
 <div class="card">
 <select id="carSelect"></select>
@@ -102,7 +102,7 @@ function ensureCar(){
 
 function num(v){
  let n=parseFloat(v);
- return isNaN(n)?0:n;
+ return isNaN(n)?NaN:n;
 }
 
 function allow(input){
@@ -124,9 +124,15 @@ let chartCarSelect=document.getElementById("chartCarSelect");
 function addCar(){
  let n=newCar.value.trim();
  let t=parseFloat(tankSize.value);
- if(!n||isNaN(t))return;
- db[n]=[]; cars[n]={tank:t}; currentCar=n;
+ if(!n||isNaN(t)){
+  alert("กรอกชื่อรถและความจุให้ถูกต้อง");
+  return;
+ }
+ db[n]=[];
+ cars[n]={tank:t};
+ currentCar=n;
  save(); update(); render();
+ newCar.value=""; tankSize.value="";
 }
 
 function update(){
@@ -146,9 +152,7 @@ function update(){
   chartCarSelect.appendChild(o2);
  });
 
- if(!chartCarSelect.value){
-  chartCarSelect.value=currentCar;
- }
+ chartCarSelect.value=currentCar;
 }
 
 carSelect.onchange=()=>{
@@ -157,9 +161,7 @@ carSelect.onchange=()=>{
  render();
 };
 
-chartCarSelect.onchange=()=>{
- render();
-};
+chartCarSelect.onchange=()=>render();
 
 liter.oninput=calc;
 price.oninput=calc;
@@ -167,12 +169,21 @@ price.oninput=calc;
 function calc(){
  let l=num(liter.value);
  let p=num(price.value);
- total.value=(l*p).toFixed(2);
+ if(!isNaN(l)&&!isNaN(p)){
+  total.value=(l*p).toFixed(2);
+ }else{
+  total.value="";
+ }
 }
 
 form.onsubmit=e=>{
  e.preventDefault();
  if(!currentCar)return;
+
+ if(!date.value || isNaN(num(km.value)) || isNaN(num(liter.value))){
+  alert("กรอกวันที่ / กิโล / ลิตร ให้ครบ");
+  return;
+ }
 
  let obj={
   date:date.value,
@@ -180,7 +191,7 @@ form.onsubmit=e=>{
   fuelLevel:parseFloat(fuelLevel.value),
   liter:num(liter.value),
   price:num(price.value),
-  additive:num(additive.value)
+  additive:num(additive.value)||0
  };
 
  if(editIndex===-1){
@@ -192,15 +203,15 @@ form.onsubmit=e=>{
 
  save(); render();
 
- // ✅ RESET เป็น "-"
- date.value="";
- km.value="-";
+ // reset
+ date.valueAsDate=new Date();
+ km.value="";
+ liter.value="";
+ price.value="";
+ additive.value="";
+ total.value="";
  fuelLevel.value=3;
  fuelValue.innerText=3;
- liter.value="-";
- price.value="-";
- total.value="0.00";
- additive.value="-";
 };
 
 function deleteRow(i){
@@ -236,8 +247,6 @@ function render(){
  data.sort((a,b)=>new Date(a.date)-new Date(b.date));
 
  let kmlArr=[];
-
- // ===== km/L per row =====
  let kmlList=[];
 
  for(let i=1;i<data.length;i++){
@@ -245,7 +254,7 @@ function render(){
   let kmPrev=num(data[i-1].km);
   let liter=num(data[i].liter);
 
-  if(liter>0){
+  if(!isNaN(liter) && liter>0){
    let kml=(kmNow-kmPrev)/liter;
    if(!isNaN(kml)){
     kmlArr.push(kml);
@@ -254,11 +263,9 @@ function render(){
   }
  }
 
- // ===== table =====
  for(let i=0;i<data.length;i++){
   let d=data[i];
-
-  let total=(num(d.liter)*num(d.price)).toFixed(2);
+  let total=(d.liter*d.price||0).toFixed(2);
 
   table.innerHTML+=`
   <tr>
@@ -281,7 +288,6 @@ function render(){
  document.getElementById("avgKml").innerText=
  kmlArr.length?(kmlArr.reduce((a,b)=>a+b,0)/kmlArr.length).toFixed(2):"-";
 
- // ===== chart (FIXED) =====
  let labels=[],values=[];
 
  for(let i=1;i<data.length;i++){
@@ -289,16 +295,10 @@ function render(){
   let kmPrev=num(data[i-1].km);
   let liter=num(data[i].liter);
 
-  if(liter>0){
+  if(!isNaN(liter) && liter>0){
    labels.push(data[i].date);
    values.push(((kmNow-kmPrev)/liter).toFixed(2));
   }
- }
-
- // 🔥 กราฟขึ้นแม้มี 1 ค่า
- if(values.length===0 && kmlArr.length>0){
-  labels=["data"];
-  values=[kmlArr[0].toFixed(2)];
  }
 
  drawChart(labels,values,noData,base);
@@ -320,11 +320,15 @@ function drawChart(labels,data,noData,carName){
    labels:labels,
    datasets:[{
     label:'km/L ('+carName+')',
-    data:data
+    data:data,
+    borderWidth:2
    }]
   }
  });
 }
+
+// default date วันนี้
+date.valueAsDate=new Date();
 
 render();
 </script>
