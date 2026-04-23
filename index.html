@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel System PRO FIX</title>
+<title>Fuel System PRO FIXED</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -26,8 +26,6 @@ th,td{padding:6px;border-bottom:1px solid #475569;text-align:center;}
 <input id="newCar" placeholder="ชื่อรถ">
 <input id="tankSize" placeholder="ความจุถัง">
 <button onclick="addCar()">➕ เพิ่มรถ</button>
-<button onclick="loadEditCar()">✏️ แก้รถ</button>
-<button onclick="deleteCar()">🗑️ ลบรถ</button>
 
 <div id="editBox" style="display:none;margin-top:10px;">
 <input id="editCarName" placeholder="ชื่อรถใหม่">
@@ -96,16 +94,24 @@ function save(){
  localStorage.setItem("currentCar",currentCar);
 }
 
-/* ================= INIT FIX (สำคัญที่สุด) ================= */
-function init(){
- let keys=Object.keys(db);
+function num(v){
+ let n=parseFloat(v);
+ return isNaN(n)?NaN:n;
+}
 
- if(keys.length){
-  if(!currentCar){
-   currentCar=keys[0];
-  }
- }else{
-  currentCar="";
+/* ================= INIT FIX ================= */
+function init(){
+ let keys = Object.keys(db);
+
+ if(keys.length === 0){
+  currentCar = "";
+  update();
+  render();
+  return;
+ }
+
+ if(!currentCar || !db[currentCar]){
+  currentCar = keys[0];
  }
 
  save();
@@ -113,25 +119,12 @@ function init(){
  render();
 }
 
-function num(v){
- let n=parseFloat(v);
- return isNaN(n)?NaN:n;
-}
-
-function getMonthWeek(dateStr){
- let d=new Date(dateStr);
- let y=d.getFullYear();
- let m=d.getMonth()+1;
- let w=Math.ceil(d.getDate()/7);
- return y+"-"+m+"."+w;
-}
-
 /* ================= CAR ================= */
 
 function addCar(){
  let n=newCar.value.trim();
  let t=parseFloat(tankSize.value);
- if(!n||isNaN(t)) return alert("กรอกข้อมูลรถ");
+ if(!n||isNaN(t)) return;
 
  db[n]=[];
  cars[n]={tank:t};
@@ -142,48 +135,7 @@ function addCar(){
  newCar.value=""; tankSize.value="";
 }
 
-function loadEditCar(){
- if(!currentCar) return;
- editBox.style.display="block";
- editCarName.value=currentCar;
- editTankSize.value=cars[currentCar].tank;
-}
-
-function saveEditCar(){
- let newName=editCarName.value.trim();
- let newTank=parseFloat(editTankSize.value);
-
- if(!newName||isNaN(newTank)) return;
-
- if(newName!==currentCar){
-  db[newName]=db[currentCar];
-  delete db[currentCar];
-
-  cars[newName]=cars[currentCar];
-  delete cars[currentCar];
-
-  currentCar=newName;
- }
-
- cars[currentCar].tank=newTank;
-
- save(); update(); render();
- editBox.style.display="none";
-}
-
-function deleteCar(){
- if(!currentCar) return;
- if(!confirm("ลบรถนี้?")) return;
-
- delete db[currentCar];
- delete cars[currentCar];
-
- currentCar=Object.keys(db)[0]||"";
-
- save(); update(); render();
-}
-
-/* ================= UI ================= */
+/* ================= UPDATE UI ================= */
 
 function update(){
  carSelect.innerHTML="";
@@ -198,10 +150,11 @@ function update(){
   chartCarSelect.appendChild(o2);
  });
 
+ carSelect.value=currentCar;
  chartCarSelect.value=currentCar;
 }
 
-/* ================= EVENTS ================= */
+/* ================= CHANGE CAR ================= */
 
 carSelect.onchange=()=>{
  currentCar=carSelect.value;
@@ -210,8 +163,7 @@ carSelect.onchange=()=>{
 
 chartCarSelect.onchange=()=>{
  currentCar=chartCarSelect.value;
- save();
- render();
+ save(); render();
 };
 
 /* ================= FORM ================= */
@@ -278,9 +230,6 @@ function deleteRow(i){
 /* ================= RENDER ================= */
 
 function render(){
- carSelect.value=currentCar;
- chartCarSelect.value=currentCar;
-
  let data=db[currentCar]||[];
 
  let table=document.getElementById("table");
@@ -288,6 +237,11 @@ function render(){
 
  table.innerHTML="";
  noData.innerHTML="";
+
+ if(!currentCar || data.length===0){
+  drawChart([],[],noData,currentCar);
+  return;
+ }
 
  data.sort((a,b)=>new Date(a.date)-new Date(b.date));
 
@@ -312,18 +266,17 @@ function render(){
   </tr>`;
  }
 
- let weekly={};
+ let labels=[];
+ let values=[];
 
  for(let i=1;i<data.length;i++){
   let diff=data[i].km-data[i-1].km;
-  if(diff>0){
-   let key=getMonthWeek(data[i].date);
-   weekly[key]=(weekly[key]||0)+diff;
+
+  if(isFinite(diff)){
+   labels.push(data[i].date);
+   values.push(diff);
   }
  }
-
- let labels=Object.keys(weekly);
- let values=Object.values(weekly);
 
  drawChart(labels,values,noData,currentCar);
 }
@@ -331,12 +284,13 @@ function render(){
 /* ================= CHART ================= */
 
 function drawChart(labels,data,noData,name){
+
  let ctx=document.getElementById("chart").getContext("2d");
 
- if(window.chart) window.chart.destroy();
+ if(window.chart)window.chart.destroy();
 
- if(labels.length===0){
-  noData.innerHTML="⚠️ ยังไม่มีข้อมูลพอสร้างกราฟ";
+ if(!labels || labels.length===0){
+  noData.innerHTML="⚠️ ยังไม่มีข้อมูลกราฟ";
   return;
  }
 
@@ -345,10 +299,14 @@ function drawChart(labels,data,noData,name){
   data:{
    labels:labels,
    datasets:[{
-    label:'km / week ('+name+')',
+    label:'km ('+name+')',
     data:data,
     backgroundColor:'#38bdf8'
    }]
+  },
+  options:{
+   responsive:true,
+   maintainAspectRatio:false
   }
  });
 }
