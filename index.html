@@ -2,8 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel Tracker</title>
-
+<title>Fuel AI PRO</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -13,55 +12,81 @@ input,button,select { padding:8px; margin:5px;}
 table { width:100%; border-collapse:collapse; margin-top:20px;}
 th,td { border:1px solid #ccc; padding:6px; text-align:center;}
 .card { background:white; padding:15px; margin-top:15px; border-radius:10px;}
+.warn { color:red; font-weight:bold;}
+.good { color:green; font-weight:bold;}
 </style>
 </head>
 
 <body>
 
-<h2>⛽ Fuel Tracker 🚗</h2>
+<h2>⛽ Fuel AI PRO 🚀</h2>
 
 <div class="card">
 เลือกรถ:
 <select id="carSelect"></select>
-<input type="text" id="newCar" placeholder="เพิ่มรถ">
+<input type="text" id="newCar" placeholder="ชื่อรถ">
+ความจุถัง: <input type="number" id="tankSize">
 <button onclick="addCar()">เพิ่ม</button>
 </div>
 
 <div class="card">
 <form id="form">
 วันที่: <input type="date" id="date">
-กิโล: <input type="text" id="km">
-ลิตร: <input type="text" id="liter">
-ราคา: <input type="text" id="price">
-เงิน: <input type="text" id="total" readonly>
+กิโล: <input type="number" id="km">
+ขีด:
+<select id="fuelLevel">
+<option value="">-</option>
+<option>1</option><option>2</option><option>3</option>
+<option>4</option><option>5</option>
+</select>
+ลิตร: <input type="number" id="liter">
+ราคา: <input type="number" id="price">
+เงิน: <input type="number" id="total" readonly>
 <button>บันทึก</button>
 </form>
 </div>
 
+<div class="card">
+<h3>📊 วิเคราะห์</h3>
+km/L เฉลี่ย: <span id="avgKml">-</span><br>
+ราคาน้ำมัน: <span id="priceStatus">-</span><br>
+แจ้งเตือน: <span id="alertFuel">-</span>
+</div>
+
+<div class="card">
+<canvas id="chart"></canvas>
+</div>
+
 <table>
 <thead>
-<tr><th>วันที่</th><th>กิโล</th><th>ลิตร</th><th>ราคา</th><th>เงิน</th></tr>
+<tr>
+<th>วันที่</th><th>km/L</th><th>ราคา</th><th>สถานะ</th>
+</tr>
 </thead>
 <tbody id="table"></tbody>
 </table>
 
 <script>
 let db = JSON.parse(localStorage.getItem("fuelDB")) || {};
+let cars = JSON.parse(localStorage.getItem("cars")) || {};
 let currentCar = localStorage.getItem("currentCar") || "";
 
 function save(){
  localStorage.setItem("fuelDB", JSON.stringify(db));
+ localStorage.setItem("cars", JSON.stringify(cars));
  localStorage.setItem("currentCar", currentCar);
 }
 
 function addCar(){
- let name = newCar.value;
- if(!name) return;
- db[name] = [];
- currentCar = name;
- save();
- updateCarList();
- render();
+ let name=newCar.value;
+ let tank=parseFloat(tankSize.value);
+ if(!name||!tank)return;
+
+ db[name]=[];
+ cars[name]={tank:tank};
+ currentCar=name;
+
+ save(); updateCarList(); render();
 }
 
 function updateCarList(){
@@ -69,15 +94,12 @@ function updateCarList(){
  Object.keys(db).forEach(c=>{
    let o=document.createElement("option");
    o.value=c; o.text=c;
-   if(c===currentCar) o.selected=true;
+   if(c===currentCar)o.selected=true;
    carSelect.appendChild(o);
  });
 }
 
-carSelect.onchange=()=>{
- currentCar=carSelect.value;
- save(); render();
-};
+carSelect.onchange=()=>{currentCar=carSelect.value; save(); render();};
 
 function calc(){
  let l=parseFloat(liter.value)||0;
@@ -89,41 +111,96 @@ price.oninput=calc;
 
 form.onsubmit=e=>{
  e.preventDefault();
- if(!currentCar){ alert("เพิ่มรถก่อน"); return;}
- db[currentCar].push({
+
+ let arr=db[currentCar]||[];
+
+ arr.push({
    date:date.value,
-   km:km.value,
-   liter:liter.value,
-   price:price.value,
-   total:total.value
+   km:parseFloat(km.value),
+   fuelLevel:parseFloat(fuelLevel.value),
+   liter:parseFloat(liter.value),
+   price:parseFloat(price.value)
  });
- save();
- form.reset();
- render();
+
+ db[currentCar]=arr;
+ save(); render();
 };
 
 function render(){
- if(!currentCar) return;
- let data=db[currentCar];
+ let data=db[currentCar]||[];
+ let table=document.getElementById("table");
  table.innerHTML="";
- data.forEach(d=>{
+
+ let kmlArr=[], priceArr=[], labels=[], kmlData=[];
+
+ for(let i=1;i<data.length;i++){
+   let d=data[i];
+   let prev=data[i-1];
+
+   let dist=d.km-prev.km;
+   let kml=dist/d.liter;
+
+   kmlArr.push(kml);
+   priceArr.push(d.price);
+
+   labels.push(d.date);
+   kmlData.push(kml.toFixed(2));
+
+   let status = d.price < avg(priceArr) ? "ถูก" : "แพง";
+
    table.innerHTML+=`
    <tr>
    <td>${d.date}</td>
-   <td>${d.km}</td>
-   <td>${d.liter}</td>
+   <td>${kml.toFixed(2)}</td>
    <td>${d.price}</td>
-   <td>${d.total}</td>
+   <td class="${status==='ถูก'?'good':'warn'}">${status}</td>
    </tr>`;
+ }
+
+ let avgKml = kmlArr.length ? avg(kmlArr).toFixed(2) : "-";
+ document.getElementById("avgKml").innerText = avgKml;
+
+ let avgPrice = priceArr.length ? avg(priceArr) : 0;
+ let lastPrice = priceArr[priceArr.length-1] || 0;
+
+ document.getElementById("priceStatus").innerHTML =
+   lastPrice < avgPrice ? "<span class='good'>ถูก</span>" :
+   "<span class='warn'>แพง</span>";
+
+ // เตือนเติมน้ำมัน
+ let last = data[data.length-1];
+ let alertMsg = "-";
+ if(last && last.fuelLevel <= 2){
+   alertMsg = "⚠️ ควรเติมน้ำมันแล้ว";
+ }
+ document.getElementById("alertFuel").innerText = alertMsg;
+
+ drawChart(labels, kmlData);
+}
+
+function avg(arr){
+ return arr.reduce((a,b)=>a+b,0)/arr.length;
+}
+
+function drawChart(labels,data){
+ let ctx=document.getElementById("chart");
+
+ if(window.myChart) window.myChart.destroy();
+
+ window.myChart=new Chart(ctx,{
+   type:'line',
+   data:{
+     labels:labels,
+     datasets:[{
+       label:'km/L',
+       data:data
+     }]
+   }
  });
 }
 
 updateCarList();
 render();
-
-if ('serviceWorker' in navigator) {
- navigator.serviceWorker.register('service-worker.js');
-}
 </script>
 
 </body>
