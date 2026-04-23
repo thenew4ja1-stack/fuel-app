@@ -2,7 +2,8 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel AI PRO</title>
+<title>Fuel Ultimate</title>
+
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -19,28 +20,42 @@ th,td { border:1px solid #ccc; padding:6px; text-align:center;}
 
 <body>
 
-<h2>⛽ Fuel AI PRO 🚀</h2>
+<h2>⛽ Fuel Ultimate 🚗</h2>
 
 <div class="card">
 เลือกรถ:
 <select id="carSelect"></select>
 <input type="text" id="newCar" placeholder="ชื่อรถ">
-ความจุถัง: <input type="number" id="tankSize">
+ความจุถัง:
+<input type="text" id="tankSize" placeholder="ลิตร">
 <button onclick="addCar()">เพิ่ม</button>
 </div>
 
 <div class="card">
 <form id="form">
+
 วันที่: <input type="date" id="date">
-กิโล: <input type="number" id="km">
+
+กิโล:
+<input type="text" id="km" placeholder="544.09 หรือ -">
+
 ขีด:
 <input type="range" id="fuelLevel" min="1" max="5" step="0.5" value="3"
 oninput="fuelValue.innerText=this.value">
+<span id="fuelValue">3</span>
 
-<span id="fuelValue">3</span> ขีด
-ลิตร: <input type="number" id="liter">
-ราคา: <input type="number" id="price">
-เงิน: <input type="number" id="total" readonly>
+ลิตร:
+<input type="text" id="liter" placeholder="เช่น 1.5">
+
+ราคา:
+<input type="text" id="price" placeholder="เช่น 31.2">
+
+เงิน:
+<input type="text" id="total" readonly>
+
+หัวเชื้อ:
+<input type="text" id="additive" placeholder="0.5">
+
 <button>บันทึก</button>
 </form>
 </div>
@@ -76,29 +91,64 @@ function save(){
  localStorage.setItem("currentCar", currentCar);
 }
 
+function parseVal(v){
+ return (v === "" || v === "-") ? "-" : parseFloat(v);
+}
+
+// กันพิมพ์มั่ว + รองรับทศนิยม
+function allowDecimal(input){
+ input.addEventListener("input", function(){
+   let val = this.value;
+
+   if(!/^[-0-9.]*$/.test(val)){
+     this.value = val.slice(0, -1);
+   }
+
+   if((val.match(/\./g) || []).length > 1){
+     this.value = val.slice(0, -1);
+   }
+
+   if(val.includes("-") && val.indexOf("-") !== 0){
+     this.value = val.replace("-", "");
+   }
+ });
+}
+
+allowDecimal(km);
+allowDecimal(liter);
+allowDecimal(price);
+allowDecimal(additive);
+allowDecimal(tankSize);
+
 function addCar(){
- let name=newCar.value;
+ let name=newCar.value.trim();
  let tank=parseFloat(tankSize.value);
- if(!name||!tank)return;
+
+ if(!name || !tank) return;
 
  db[name]=[];
  cars[name]={tank:tank};
  currentCar=name;
 
- save(); updateCarList(); render();
+ save();
+ updateCarList();
+ render();
 }
 
 function updateCarList(){
  carSelect.innerHTML="";
  Object.keys(db).forEach(c=>{
    let o=document.createElement("option");
-   o.value=c; o.text=c;
+   o.value=c; o.text=c + " (" + cars[c].tank + "L)";
    if(c===currentCar)o.selected=true;
    carSelect.appendChild(o);
  });
 }
 
-carSelect.onchange=()=>{currentCar=carSelect.value; save(); render();};
+carSelect.onchange=()=>{
+ currentCar=carSelect.value;
+ save(); render();
+};
 
 function calc(){
  let l=parseFloat(liter.value)||0;
@@ -115,15 +165,19 @@ form.onsubmit=e=>{
 
  arr.push({
    date:date.value,
-   km:parseFloat(km.value),
+   km:parseVal(km.value),
    fuelLevel:parseFloat(fuelLevel.value),
-   liter:parseFloat(liter.value),
-   price:parseFloat(price.value)
+   liter:parseVal(liter.value),
+   price:parseVal(price.value)
  });
 
  db[currentCar]=arr;
  save(); render();
 };
+
+function avg(arr){
+ return arr.reduce((a,b)=>a+b,0)/arr.length;
+}
 
 function render(){
  let data=db[currentCar]||[];
@@ -135,6 +189,8 @@ function render(){
  for(let i=1;i<data.length;i++){
    let d=data[i];
    let prev=data[i-1];
+
+   if(isNaN(d.km)||isNaN(prev.km)||isNaN(d.liter)) continue;
 
    let dist=d.km-prev.km;
    let kml=dist/d.liter;
@@ -166,7 +222,6 @@ function render(){
    lastPrice < avgPrice ? "<span class='good'>ถูก</span>" :
    "<span class='warn'>แพง</span>";
 
- // เตือนเติมน้ำมัน
  let last = data[data.length-1];
  let alertMsg = "-";
  if(last && last.fuelLevel <= 2){
@@ -175,10 +230,6 @@ function render(){
  document.getElementById("alertFuel").innerText = alertMsg;
 
  drawChart(labels, kmlData);
-}
-
-function avg(arr){
- return arr.reduce((a,b)=>a+b,0)/arr.length;
 }
 
 function drawChart(labels,data){
@@ -200,6 +251,10 @@ function drawChart(labels,data){
 
 updateCarList();
 render();
+
+if ('serviceWorker' in navigator) {
+ navigator.serviceWorker.register('service-worker.js');
+}
 </script>
 
 </body>
