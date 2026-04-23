@@ -51,7 +51,7 @@ oninput="fuelValue.innerText=this.value">
 </div>
 
 <div class="card">
-<canvas id="chart"></canvas>
+<canvas id="chart" height="120"></canvas>
 <div id="noData"></div>
 </div>
 
@@ -59,8 +59,16 @@ oninput="fuelValue.innerText=this.value">
 <table>
 <thead>
 <tr>
-<th>วันที่</th><th>กิโล</th><th>ขีด</th><th>ลิตร</th>
-<th>ราคา</th><th>เงิน</th><th>หัวเชื้อ</th><th>km/L</th><th>จัดการ</th>
+<th>วันที่</th>
+<th>รถ</th>
+<th>กิโล</th>
+<th>ขีด</th>
+<th>ลิตร</th>
+<th>ราคา</th>
+<th>เงิน</th>
+<th>หัวเชื้อ</th>
+<th>km/L</th>
+<th>จัดการ</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
@@ -89,12 +97,13 @@ function ensureCar(){
 }
 
 function parseVal(v){
- if(v===""||v==="-" ) return "-";
  let n=parseFloat(v);
- return isNaN(n)?"-":n;
+ return isNaN(n)?null:n;
 }
 
+/* FIX input */
 function allow(input){
+ if(!input) return;
  input.oninput=()=>{
   let v=input.value;
   if(!/^[-0-9.]*$/.test(v)) input.value=v.slice(0,-1);
@@ -103,7 +112,9 @@ function allow(input){
  };
 }
 
-["km","liter","price","additive","tankSize"].forEach(id=>allow(window[id]));
+["km","liter","price","additive","tankSize"].forEach(id=>{
+ allow(document.getElementById(id));
+});
 
 function addCar(){
  let n=newCar.value.trim();
@@ -124,7 +135,11 @@ function update(){
  });
 }
 
-carSelect.onchange=()=>{currentCar=carSelect.value;save();render();};
+carSelect.onchange=()=>{
+ currentCar=carSelect.value;
+ save();
+ render();
+};
 
 liter.oninput=calc;
 price.oninput=calc;
@@ -162,7 +177,6 @@ form.onsubmit=e=>{
 
  save(); render();
 
- // 🔥 รีเซ็ตค่าเป็น 0
  date.value="";
  km.value="0";
  fuelLevel.value=3;
@@ -196,6 +210,10 @@ function render(){
  update();
 
  let data=db[currentCar]||[];
+
+ /* ✅ SORT วันที่ */
+ data.sort((a,b)=>new Date(a.date)-new Date(b.date));
+
  let table=document.getElementById("table");
  let noData=document.getElementById("noData");
  table.innerHTML="";
@@ -205,15 +223,20 @@ function render(){
 
  for(let i=0;i<data.length;i++){
   let d=data[i],prev=data[i-1];
+
+  let kmNow=parseFloat(d.km);
+  let kmPrev=parseFloat(prev?.km);
+  let liter=parseFloat(d.liter);
+
   let kml="-";
 
-  if(i>0&&!isNaN(d.km)&&!isNaN(prev.km)&&!isNaN(d.liter)){
-   let dist=d.km-prev.km;
-   kml=(dist/d.liter).toFixed(2);
+  if(i>0 && !isNaN(kmNow) && !isNaN(kmPrev) && !isNaN(liter) && liter>0){
+   let dist=kmNow-kmPrev;
+   kml=(dist/liter).toFixed(2);
    kmlArr.push(parseFloat(kml));
 
-   if(d.date){
-    let m=d.date.slice(0,7);
+   let m=d.date?.slice(0,7);
+   if(m){
     if(!monthMap[m])monthMap[m]=[];
     monthMap[m].push(parseFloat(kml));
    }
@@ -224,6 +247,7 @@ function render(){
   table.innerHTML+=`
   <tr>
   <td>${d.date||"-"}</td>
+  <td>${currentCar}</td>
   <td>${d.km}</td>
   <td>${d.fuelLevel}</td>
   <td>${d.liter}</td>
@@ -239,14 +263,15 @@ function render(){
  }
 
  document.getElementById("avgKml").innerText=
-  kmlArr.length?(kmlArr.reduce((a,b)=>a+b,0)/kmlArr.length).toFixed(2):"-";
+ kmlArr.length?(kmlArr.reduce((a,b)=>a+b,0)/kmlArr.length).toFixed(2):"-";
 
+ /* ✅ SORT เดือน */
  let labels=[],values=[];
- for(let m in monthMap){
+ Object.keys(monthMap).sort().forEach(m=>{
   let avg=monthMap[m].reduce((a,b)=>a+b,0)/monthMap[m].length;
   labels.push(m);
   values.push(avg.toFixed(2));
- }
+ });
 
  drawChart(labels,values,noData);
 }
@@ -263,7 +288,13 @@ function drawChart(labels,data,noData){
 
  window.chart=new Chart(ctx,{
   type:'line',
-  data:{labels:labels,datasets:[{label:'km/L ต่อเดือน',data:data}]}
+  data:{
+   labels:labels,
+   datasets:[{
+    label:'km/L ต่อเดือน',
+    data:data
+   }]
+  }
  });
 }
 
