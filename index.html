@@ -105,7 +105,7 @@ function parseVal(v){
  return isNaN(n)?null:n;
 }
 
-/* allow input */
+/* input safe */
 function allow(input){
  if(!input) return;
  input.oninput=()=>{
@@ -147,7 +147,9 @@ function update(){
   chartCarSelect.appendChild(o2);
  });
 
- if(!chartCarSelect.value) chartCarSelect.value=currentCar;
+ if(!chartCarSelect.value){
+  chartCarSelect.value=currentCar;
+ }
 }
 
 carSelect.onchange=()=>{
@@ -224,55 +226,58 @@ function render(){
  ensureCar();
  update();
 
- let data=db[currentCar]||[];
-
- /* sort date */
- data.sort((a,b)=>new Date(a.date)-new Date(b.date));
+ let base = chartCarSelect.value || currentCar;
+ let data = db[base] || [];
 
  let table=document.getElementById("table");
  let noData=document.getElementById("noData");
  table.innerHTML="";
  noData.innerHTML="";
 
- let chartCar=chartCarSelect.value || currentCar;
- let chartData=db[chartCar]||[];
+ /* sort date */
+ data.sort((a,b)=>new Date(a.date)-new Date(b.date));
 
  let kmlArr=[],monthMap={};
 
- for(let i=0;i<data.length;i++){
+ for(let i=1;i<data.length;i++){
   let d=data[i],prev=data[i-1];
 
   let kmNow=parseFloat(d.km);
-  let kmPrev=parseFloat(prev?.km);
+  let kmPrev=parseFloat(prev.km);
   let liter=parseFloat(d.liter);
 
-  let kml="-";
+  if(!isNaN(kmNow)&&!isNaN(kmPrev)&&!isNaN(liter)&&liter>0){
+   let kml=((kmNow-kmPrev)/liter);
 
-  if(i>0 && !isNaN(kmNow) && !isNaN(kmPrev) && !isNaN(liter) && liter>0){
-   let dist=kmNow-kmPrev;
-   kml=(dist/liter).toFixed(2);
-   kmlArr.push(parseFloat(kml));
+   if(!isNaN(kml)){
+    kmlArr.push(kml);
 
-   let m=d.date?.slice(0,7);
-   if(m){
-    if(!monthMap[m])monthMap[m]=[];
-    monthMap[m].push(parseFloat(kml));
+    let m=d.date?.slice(0,7);
+    if(m){
+     if(!monthMap[m])monthMap[m]=[];
+     monthMap[m].push(kml);
+    }
    }
   }
+ }
+
+ /* table */
+ for(let i=0;i<data.length;i++){
+  let d=data[i];
 
   let total=(!isNaN(d.liter)&&!isNaN(d.price))?(d.liter*d.price).toFixed(2):"-";
 
   table.innerHTML+=`
   <tr>
   <td>${d.date||"-"}</td>
-  <td>${currentCar}</td>
+  <td>${base}</td>
   <td>${d.km}</td>
   <td>${d.fuelLevel}</td>
   <td>${d.liter}</td>
   <td>${d.price}</td>
   <td>${total}</td>
   <td>${d.additive}</td>
-  <td>${kml}</td>
+  <td>-</td>
   <td>
   <button onclick="editRow(${i})">✏️</button>
   <button onclick="deleteRow(${i})">🗑️</button>
@@ -283,7 +288,7 @@ function render(){
  document.getElementById("avgKml").innerText=
  kmlArr.length?(kmlArr.reduce((a,b)=>a+b,0)/kmlArr.length).toFixed(2):"-";
 
- /* chart data */
+ /* chart */
  let labels=[],values=[];
  Object.keys(monthMap).sort().forEach(m=>{
   let avg=monthMap[m].reduce((a,b)=>a+b,0)/monthMap[m].length;
@@ -291,10 +296,10 @@ function render(){
   values.push(avg.toFixed(2));
  });
 
- drawChart(labels,values,noData);
+ drawChart(labels,values,noData,base);
 }
 
-function drawChart(labels,data,noData){
+function drawChart(labels,data,noData,carName){
  let ctx=document.getElementById("chart");
 
  if(window.chart)window.chart.destroy();
@@ -309,7 +314,7 @@ function drawChart(labels,data,noData){
   data:{
    labels:labels,
    datasets:[{
-    label:'km/L ต่อเดือน',
+    label:'km/L ('+carName+')',
     data:data
    }]
   }
