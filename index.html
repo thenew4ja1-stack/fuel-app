@@ -105,7 +105,6 @@ function num(v){
  return isNaN(n)?0:n;
 }
 
-/* input safe */
 function allow(input){
  if(!input) return;
  input.oninput=()=>{
@@ -193,15 +192,15 @@ form.onsubmit=e=>{
 
  save(); render();
 
- /* RESET = 0 ทั้งหมด */
+ // ✅ RESET เป็น "-"
  date.value="";
- km.value="0";
+ km.value="-";
  fuelLevel.value=3;
  fuelValue.innerText=3;
- liter.value="0";
- price.value="0";
+ liter.value="-";
+ price.value="-";
  total.value="0.00";
- additive.value="0";
+ additive.value="-";
 };
 
 function deleteRow(i){
@@ -236,31 +235,26 @@ function render(){
 
  data.sort((a,b)=>new Date(a.date)-new Date(b.date));
 
- let kmlArr=[],monthMap={};
+ let kmlArr=[];
 
- /* ===== KM/L ===== */
+ // ===== km/L per row =====
+ let kmlList=[];
+
  for(let i=1;i<data.length;i++){
-  let d=data[i],prev=data[i-1];
-
-  let kmNow=num(d.km);
-  let kmPrev=num(prev.km);
-  let liter=num(d.liter);
+  let kmNow=num(data[i].km);
+  let kmPrev=num(data[i-1].km);
+  let liter=num(data[i].liter);
 
   if(liter>0){
    let kml=(kmNow-kmPrev)/liter;
    if(!isNaN(kml)){
     kmlArr.push(kml);
-
-    let m=d.date?.slice(0,7);
-    if(m){
-     if(!monthMap[m])monthMap[m]=[];
-     monthMap[m].push(kml);
-    }
+    kmlList[i]=kml.toFixed(2);
    }
   }
  }
 
- /* ===== TABLE ===== */
+ // ===== table =====
  for(let i=0;i<data.length;i++){
   let d=data[i];
 
@@ -276,7 +270,7 @@ function render(){
   <td>${d.price}</td>
   <td>${total}</td>
   <td>${d.additive}</td>
-  <td>-</td>
+  <td>${kmlList[i]||"-"}</td>
   <td>
   <button onclick="editRow(${i})">✏️</button>
   <button onclick="deleteRow(${i})">🗑️</button>
@@ -287,17 +281,22 @@ function render(){
  document.getElementById("avgKml").innerText=
  kmlArr.length?(kmlArr.reduce((a,b)=>a+b,0)/kmlArr.length).toFixed(2):"-";
 
- /* ===== CHART (FIXED) ===== */
+ // ===== chart (FIXED) =====
  let labels=[],values=[];
 
- Object.keys(monthMap).sort().forEach(m=>{
-  let avg=monthMap[m].reduce((a,b)=>a+b,0)/monthMap[m].length;
-  labels.push(m);
-  values.push(avg.toFixed(2));
- });
+ for(let i=1;i<data.length;i++){
+  let kmNow=num(data[i].km);
+  let kmPrev=num(data[i-1].km);
+  let liter=num(data[i].liter);
 
- /* 👉 ถ้ามีข้อมูล 1 ค่า ให้โชว์เป็นกราฟจุดเดียว */
- if(labels.length===0 && kmlArr.length>0){
+  if(liter>0){
+   labels.push(data[i].date);
+   values.push(((kmNow-kmPrev)/liter).toFixed(2));
+  }
+ }
+
+ // 🔥 กราฟขึ้นแม้มี 1 ค่า
+ if(values.length===0 && kmlArr.length>0){
   labels=["data"];
   values=[kmlArr[0].toFixed(2)];
  }
@@ -311,7 +310,7 @@ function drawChart(labels,data,noData,carName){
  if(window.chart)window.chart.destroy();
 
  if(labels.length===0){
-  noData.innerHTML="⚠️ ยังไม่มีข้อมูล";
+  noData.innerHTML="⚠️ ยังไม่มีข้อมูลพอสำหรับกราฟ";
   return;
  }
 
