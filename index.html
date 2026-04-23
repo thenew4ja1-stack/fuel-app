@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel Ultimate PRO</title>
+<title>Fuel Ultimate FINAL</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -10,22 +10,21 @@ body {font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
 .container{max-width:900px;margin:auto;padding:15px;}
 .card{background:#1e293b;padding:15px;margin-top:15px;border-radius:12px;}
 input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;}
-button{padding:6px 12px;background:#38bdf8;border:none;border-radius:6px;font-weight:bold;margin:2px;}
+button{padding:6px 12px;background:#38bdf8;border:none;border-radius:6px;}
 table{width:100%;border-collapse:collapse;margin-top:10px;}
 th,td{padding:6px;border-bottom:1px solid #475569;text-align:center;}
-.good{color:#22c55e;} .warn{color:#ef4444;}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<h2>⛽ Fuel Ultimate PRO</h2>
+<h2>⛽ Fuel Ultimate</h2>
 
 <div class="card">
 <select id="carSelect"></select>
 <input id="newCar" placeholder="ชื่อรถ">
-<input id="tankSize" placeholder="ความจุถัง (ลิตร)">
+<input id="tankSize" placeholder="ความจุถัง">
 <button onclick="addCar()">เพิ่มรถ</button>
 </div>
 
@@ -41,7 +40,7 @@ oninput="fuelValue.innerText=this.value">
 
 <input id="liter" placeholder="ลิตร">
 <input id="price" placeholder="ราคา">
-<input id="total" placeholder="เงิน" readonly>
+<input id="total" readonly>
 <input id="additive" placeholder="หัวเชื้อ (ลิตร)">
 <button>บันทึก</button>
 </form>
@@ -53,6 +52,7 @@ oninput="fuelValue.innerText=this.value">
 
 <div class="card">
 <canvas id="chart"></canvas>
+<div id="noData"></div>
 </div>
 
 <div class="card">
@@ -79,6 +79,13 @@ function save(){
  localStorage.setItem("fuelDB",JSON.stringify(db));
  localStorage.setItem("cars",JSON.stringify(cars));
  localStorage.setItem("currentCar",currentCar);
+}
+
+function ensureCar(){
+ let keys=Object.keys(db);
+ if(!currentCar && keys.length){
+  currentCar=keys[0];
+ }
 }
 
 function parseVal(v){
@@ -132,6 +139,11 @@ form.onsubmit=e=>{
  e.preventDefault();
  if(!currentCar)return;
 
+ if(!date.value){
+  alert("กรุณาใส่วันที่");
+  return;
+ }
+
  let obj={
   date:date.value,
   km:parseVal(km.value),
@@ -149,7 +161,16 @@ form.onsubmit=e=>{
  }
 
  save(); render();
- form.reset();
+
+ // 🔥 รีเซ็ตค่าเป็น 0
+ date.value="";
+ km.value="0";
+ fuelLevel.value=3;
+ fuelValue.innerText=3;
+ liter.value="0";
+ price.value="0";
+ total.value="0.00";
+ additive.value="0";
 };
 
 function deleteRow(i){
@@ -160,7 +181,6 @@ function deleteRow(i){
 
 function editRow(i){
  let d=db[currentCar][i];
-
  date.value=d.date;
  km.value=d.km;
  fuelLevel.value=d.fuelLevel;
@@ -168,14 +188,18 @@ function editRow(i){
  liter.value=d.liter;
  price.value=d.price;
  additive.value=d.additive;
-
  editIndex=i;
 }
 
 function render(){
+ ensureCar();
+ update();
+
  let data=db[currentCar]||[];
  let table=document.getElementById("table");
+ let noData=document.getElementById("noData");
  table.innerHTML="";
+ noData.innerHTML="";
 
  let kmlArr=[],monthMap={};
 
@@ -188,9 +212,11 @@ function render(){
    kml=(dist/d.liter).toFixed(2);
    kmlArr.push(parseFloat(kml));
 
-   let m=d.date.slice(0,7);
-   if(!monthMap[m])monthMap[m]=[];
-   monthMap[m].push(parseFloat(kml));
+   if(d.date){
+    let m=d.date.slice(0,7);
+    if(!monthMap[m])monthMap[m]=[];
+    monthMap[m].push(parseFloat(kml));
+   }
   }
 
   let total=(!isNaN(d.liter)&&!isNaN(d.price))?(d.liter*d.price).toFixed(2):"-";
@@ -222,12 +248,18 @@ function render(){
   values.push(avg.toFixed(2));
  }
 
- drawChart(labels,values);
+ drawChart(labels,values,noData);
 }
 
-function drawChart(labels,data){
+function drawChart(labels,data,noData){
  let ctx=document.getElementById("chart");
+
  if(window.chart)window.chart.destroy();
+
+ if(labels.length===0){
+  noData.innerHTML="⚠️ ยังไม่มีข้อมูลพอสำหรับกราฟ";
+  return;
+ }
 
  window.chart=new Chart(ctx,{
   type:'line',
@@ -235,7 +267,6 @@ function drawChart(labels,data){
  });
 }
 
-update();
 render();
 </script>
 
