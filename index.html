@@ -2,62 +2,71 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Fuel System PRO - Trip Mode</title>
+<title>Fuel System PRO - Trip Mode V2</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
 <style>
-body {font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
-.container{max-width:1000px;margin:auto;padding:15px;}
-.card{background:#1e293b;padding:15px;margin-top:15px;border-radius:12px;}
-input,select{padding:8px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;width:130px;}
-button{padding:8px 12px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer;font-weight:bold;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{padding:8px;border-bottom:1px solid #475569;text-align:center;font-size: 0.9em;}
+body {font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
+.container{max-width:1100px;margin:auto;padding:15px;}
+.card{background:#1e293b;padding:20px;margin-top:15px;border-radius:12px;box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);}
+input,select{padding:10px;margin:5px;border-radius:8px;border:1px solid #334155;background:#334155;color:white;width:140px;outline:none;}
+input:focus{border-color:#38bdf8;}
+button{padding:10px 18px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer;font-weight:bold;transition:0.2s;}
+button:hover{background:#0ea5e9;transform:scale(1.05);}
+table{width:100%;border-collapse:collapse;margin-top:15px;}
+th{background:#334155;padding:12px;color:#38bdf8;text-transform:uppercase;font-size:0.85em;}
+td{padding:10px;border-bottom:1px solid #334155;text-align:center;font-size: 0.95em;}
 .btn-del{background:#ef4444; color:white;}
 .btn-edit{background:#f59e0b; color:white;}
+h2 {color: #38bdf8; margin-bottom: 5px;}
+p.sub {color: #94a3b8; font-size: 0.9em; margin-bottom: 20px;}
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h2>⛽ Fuel System PRO (Trip Reset Mode)</h2>
+  <h2>⛽ Fuel System PRO</h2>
+  <p class="sub">*บันทึกระยะทางจริงจาก Trip Meter และรวมผลให้รายสัปดาห์</p>
 
   <div class="card">
     <select id="carSelect"></select>
-    <input id="newCar" placeholder="ชื่อรถ">
-    <input id="tankSize" placeholder="ความจุถัง">
+    <input id="newCar" placeholder="ชื่อรถ (เช่น Dmax)">
+    <input id="tankSize" placeholder="ความจุถัง (ลิตร)">
     <button onclick="addCar()">➕ เพิ่มรถ</button>
   </div>
 
   <div class="card">
     <form id="form">
       <input type="date" id="date">
-      <input id="km" placeholder="กิโล (Trip)">
+      <input id="km" type="number" step="any" placeholder="ระยะทาง (Trip กม.)">
       <input type="range" id="fuelLevel" min="1" max="5" step="0.5" value="3" oninput="fuelValue.innerText=this.value">
-      <span id="fuelValue">3</span> ขีด
+      <span style="font-weight:bold; color:#38bdf8;"><span id="fuelValue">3</span> ขีด</span>
       <br>
-      <input id="liter" placeholder="ลิตร">
-      <input id="price" placeholder="ราคา">
-      <input id="additive" placeholder="หัวเชื้อ">
-      <button type="submit">บันทึก</button>
+      <input id="liter" type="number" step="any" placeholder="จำนวนลิตร">
+      <input id="price" type="number" step="any" placeholder="ราคาน้ำมันต่อลิตร">
+      <input id="additive" placeholder="หัวเชื้อ (ถ้ามี)">
+      <button type="submit">💾 บันทึกข้อมูล</button>
     </form>
   </div>
 
-  <div class="card" style="height:320px;">
+  <div class="card" style="height:400px;">
     <canvas id="chart"></canvas>
   </div>
 
   <div class="card">
     <select id="chartCarSelect" style="float:right"></select>
+    <h3>📋 ประวัติย้อนหลัง</h3>
     <table>
       <thead>
         <tr>
           <th>วันที่</th>
           <th>รถ</th>
-          <th>กิโล</th>
+          <th>กิโล (Trip)</th>
           <th>ขีด</th>
           <th>ลิตร</th>
           <th>ราคา</th>
-          <th>เงิน</th>
+          <th>รวมเงิน</th>
           <th>หัวเชื้อ</th>
           <th>จัดการ</th>
         </tr>
@@ -73,6 +82,9 @@ let cars = JSON.parse(localStorage.getItem("cars")) || {};
 let currentCar = localStorage.getItem("currentCar") || "";
 let myChart = null;
 let editIndex = -1;
+
+// ลงทะเบียน Plugin สำหรับแสดงเลขบนกราฟ
+Chart.register(ChartDataLabels);
 
 function init() {
     let keys = Object.keys(db);
@@ -91,7 +103,7 @@ function save() {
 function addCar() {
     let n = newCar.value.trim();
     let t = parseFloat(tankSize.value);
-    if(!n || isNaN(t)) return;
+    if(!n || isNaN(t)) return alert("กรุณาระบุชื่อรถและขนาดถัง");
     if(!db[n]) db[n] = [];
     cars[n] = {tank:t};
     currentCar = n;
@@ -115,7 +127,7 @@ chartCarSelect.onchange = () => { currentCar = chartCarSelect.value; save(); ren
 
 form.onsubmit = e => {
     e.preventDefault();
-    if(!currentCar) return alert("เพิ่มรถก่อน");
+    if(!currentCar) return alert("กรุณาเพิ่มรถก่อนบันทึก");
     
     let obj = {
         date: date.value,
@@ -134,7 +146,7 @@ form.onsubmit = e => {
 };
 
 function deleteRow(i) {
-    if(confirm("ลบ?")) { db[currentCar].splice(i, 1); save(); render(); }
+    if(confirm("ต้องการลบข้อมูลชุดนี้ใช่ไหม?")) { db[currentCar].splice(i, 1); save(); render(); }
 }
 
 function editRow(i) {
@@ -147,6 +159,7 @@ function editRow(i) {
     price.value = d.price;
     additive.value = d.additive;
     editIndex = i;
+    window.scrollTo(0,0);
 }
 
 function render() {
@@ -156,14 +169,13 @@ function render() {
     
     data.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // 1. วาดตารางแบบเดิม (ครบทุกช่อง)
     data.forEach((d, i) => {
         let total = (d.liter * d.price).toFixed(2);
         tableBody.innerHTML += `
             <tr>
                 <td>${d.date}</td>
                 <td>${currentCar}</td>
-                <td>${d.km}</td>
+                <td style="font-weight:bold; color:#38bdf8">${d.km}</td>
                 <td>${d.fuelLevel}</td>
                 <td>${d.liter}</td>
                 <td>${d.price}</td>
@@ -176,7 +188,6 @@ function render() {
             </tr>`;
     });
 
-    // 2. คำนวณกราฟแบบ Trip Sum (รายสัปดาห์)
     let weeklyTotals = {};
     data.forEach(d => {
         let dt = new Date(d.date);
@@ -197,6 +208,7 @@ function render() {
 function drawChart(labels, values) {
     let ctx = document.getElementById("chart").getContext("2d");
     if(myChart) myChart.destroy();
+    
     myChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -204,13 +216,39 @@ function drawChart(labels, values) {
             datasets: [{
                 label: 'ระยะทางสะสมรายสัปดาห์ (km)',
                 data: values,
-                backgroundColor: '#38bdf8'
+                backgroundColor: 'rgba(56, 189, 248, 0.8)',
+                borderColor: '#38bdf8',
+                borderWidth: 2,
+                borderRadius: 8,
+                barPercentage: 0.6 // ทำให้แท่งกราฟกว้างขึ้น
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true } }
+            plugins: {
+                legend: { labels: { color: '#e2e8f0', font: { size: 14, weight: 'bold' } } },
+                // ตั้งค่าตัวเลขบนหัวแท่ง
+                datalabels: {
+                    color: '#fff',
+                    anchor: 'end',
+                    align: 'top',
+                    offset: 5,
+                    font: { size: 13, weight: 'bold' },
+                    formatter: (value) => value + " km"
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: '#334155' },
+                    ticks: { color: '#94a3b8', font: { size: 12 } }
+                },
+                x: { 
+                    grid: { display: false },
+                    ticks: { color: '#e2e8f0', font: { size: 14, weight: 'bold' } }
+                }
+            }
         }
     });
 }
