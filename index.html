@@ -100,9 +100,9 @@ function ensureCar(){
  }
 }
 
-function parseVal(v){
+function num(v){
  let n=parseFloat(v);
- return isNaN(n)?null:n;
+ return isNaN(n)?0:n;
 }
 
 /* input safe */
@@ -166,8 +166,8 @@ liter.oninput=calc;
 price.oninput=calc;
 
 function calc(){
- let l=parseFloat(liter.value)||0;
- let p=parseFloat(price.value)||0;
+ let l=num(liter.value);
+ let p=num(price.value);
  total.value=(l*p).toFixed(2);
 }
 
@@ -177,11 +177,11 @@ form.onsubmit=e=>{
 
  let obj={
   date:date.value,
-  km:parseVal(km.value),
+  km:num(km.value),
   fuelLevel:parseFloat(fuelLevel.value),
-  liter:parseVal(liter.value),
-  price:parseVal(price.value),
-  additive:parseVal(additive.value)
+  liter:num(liter.value),
+  price:num(price.value),
+  additive:num(additive.value)
  };
 
  if(editIndex===-1){
@@ -193,15 +193,15 @@ form.onsubmit=e=>{
 
  save(); render();
 
- /* reset */
+ /* RESET = 0 ทั้งหมด */
  date.value="";
- km.value="-";
+ km.value="0";
  fuelLevel.value=3;
  fuelValue.innerText=3;
- liter.value="-";
- price.value="-";
+ liter.value="0";
+ price.value="0";
  total.value="0.00";
- additive.value="-";
+ additive.value="0";
 };
 
 function deleteRow(i){
@@ -234,21 +234,20 @@ function render(){
  table.innerHTML="";
  noData.innerHTML="";
 
- /* sort date */
  data.sort((a,b)=>new Date(a.date)-new Date(b.date));
 
  let kmlArr=[],monthMap={};
 
+ /* ===== KM/L ===== */
  for(let i=1;i<data.length;i++){
   let d=data[i],prev=data[i-1];
 
-  let kmNow=parseFloat(d.km);
-  let kmPrev=parseFloat(prev.km);
-  let liter=parseFloat(d.liter);
+  let kmNow=num(d.km);
+  let kmPrev=num(prev.km);
+  let liter=num(d.liter);
 
-  if(!isNaN(kmNow)&&!isNaN(kmPrev)&&!isNaN(liter)&&liter>0){
-   let kml=((kmNow-kmPrev)/liter);
-
+  if(liter>0){
+   let kml=(kmNow-kmPrev)/liter;
    if(!isNaN(kml)){
     kmlArr.push(kml);
 
@@ -261,11 +260,11 @@ function render(){
   }
  }
 
- /* table */
+ /* ===== TABLE ===== */
  for(let i=0;i<data.length;i++){
   let d=data[i];
 
-  let total=(!isNaN(d.liter)&&!isNaN(d.price))?(d.liter*d.price).toFixed(2):"-";
+  let total=(num(d.liter)*num(d.price)).toFixed(2);
 
   table.innerHTML+=`
   <tr>
@@ -288,13 +287,20 @@ function render(){
  document.getElementById("avgKml").innerText=
  kmlArr.length?(kmlArr.reduce((a,b)=>a+b,0)/kmlArr.length).toFixed(2):"-";
 
- /* chart */
+ /* ===== CHART (FIXED) ===== */
  let labels=[],values=[];
+
  Object.keys(monthMap).sort().forEach(m=>{
   let avg=monthMap[m].reduce((a,b)=>a+b,0)/monthMap[m].length;
   labels.push(m);
   values.push(avg.toFixed(2));
  });
+
+ /* 👉 ถ้ามีข้อมูล 1 ค่า ให้โชว์เป็นกราฟจุดเดียว */
+ if(labels.length===0 && kmlArr.length>0){
+  labels=["data"];
+  values=[kmlArr[0].toFixed(2)];
+ }
 
  drawChart(labels,values,noData,base);
 }
@@ -305,7 +311,7 @@ function drawChart(labels,data,noData,carName){
  if(window.chart)window.chart.destroy();
 
  if(labels.length===0){
-  noData.innerHTML="⚠️ ยังไม่มีข้อมูลพอสำหรับกราฟ";
+  noData.innerHTML="⚠️ ยังไม่มีข้อมูล";
   return;
  }
 
