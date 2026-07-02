@@ -48,6 +48,11 @@ h2 {color: #38bdf8; margin: 0 0 10px 0;}
       <input id="price" type="number" step="any" placeholder="ราคา/ลิตร">
       <input id="additive" placeholder="หัวเชื้อ">
       <button type="submit">💾 บันทึกข้อมูล</button>
+      
+      <hr style="border-color: #334155; margin: 15px 0;">
+      <button type="button" onclick="exportData()" style="background: #10b981;">📤 สำรองข้อมูล (Saveลงเครื่อง)</button>
+      <button type="button" onclick="importData()" style="background: #6366f1;">📥 ดึงข้อมูลกลับ (Upload)</button>
+      <input type="file" id="importFile" style="display:none" onchange="handleImport(this)">
     </form>
   </div>
 
@@ -246,6 +251,42 @@ function drawChart(labels, values) {
         }
     });
 }
+
+/* ================= ฟังก์ชันสำหรับ สำรอง/ดึง ข้อมูลกลับมา ================= */
+function exportData() {
+    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({fuelDB: db, cars: cars}));
+    let downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `fuel_backup_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+}
+
+function importData() {
+    document.getElementById('importFile').click();
+}
+
+function handleImport(input) {
+    let file = input.files[0];
+    if(!file) return;
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            let imported = JSON.parse(e.target.result);
+            if(imported.fuelDB && imported.cars) {
+                db = imported.fuelDB;
+                cars = imported.cars;
+                save(); updateUI(); render();
+                alert("ดึงข้อมูลกลับสำเร็จแล้วครับ!");
+            } else {
+                alert("โครงสร้างไฟล์ข้อมูลไม่ถูกต้อง");
+            }
+        } catch(err) { alert("อ่านไฟล์ไม่ได้ หรือไฟล์ไม่ใช่ JSON"); }
+    };
+    reader.readAsText(file);
+}
+
 init();
 </script>
 </body>
