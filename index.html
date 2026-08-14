@@ -263,25 +263,39 @@ function drawChart(labels, values) {
     });
 }
 
-/* ================= ฟังก์ชันสำหรับ สำรอง/ดึง ข้อมูลกลับมา (รองรับ iOS/Safari) ================= */
-function exportData() {
+/* ================= ฟังก์ชันสำหรับ สำรอง ข้อมูล (รองรับ iOS/iPadOS/PC 100%) ================= */
+async function exportData() {
     const jsonString = JSON.stringify({fuelDB: db, cars: cars}, null, 2);
     const fileName = `fuel_backup_${new Date().toISOString().slice(0,10)}.json`;
     const blob = new Blob([jsonString], { type: "application/json" });
 
-    // แก้ปัญหา Safari บน iOS/iPadOS
-    const reader = new FileReader();
-    reader.onloadend = function() {
-        const a = document.createElement('a');
-        a.href = reader.result;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-        }, 100);
-    };
-    reader.readAsDataURL(blob);
+    // 1. ถ้าเป็น iOS/iPadOS หรือเบราว์เซอร์มือถือที่รองรับ Web Share API
+    const file = new File([blob], fileName, { type: "application/json" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: 'Fuel Backup',
+                text: 'ไฟล์สำรองข้อมูล Fuel System PRO'
+            });
+            return;
+        } catch (err) {
+            if (err.name !== 'AbortError') console.error(err);
+            else return; // ผู้ใช้กด Cancel
+        }
+    }
+
+    // 2. ถ้าเป็นคอมพิวเตอร์ (PC/Mac) จะใช้วิธีดาวน์โหลดปกติ
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+    }, 1000);
 }
 
 function importData() {
@@ -304,7 +318,7 @@ function handleImport(input) {
                 alert("โครงสร้างไฟล์ข้อมูลไม่ถูกต้อง");
             }
         } catch(err) { alert("อ่านไฟล์ไม่ได้ หรือไฟล์ไม่ใช่ JSON"); }
-        input.value = ''; // ล้างค่าเผื่ออัปโหลดไฟล์เดิมซ้ำ
+        input.value = '';
     };
     reader.readAsText(file);
 }
