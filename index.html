@@ -40,6 +40,7 @@ h2 {color: #38bdf8; margin: 0 0 10px 0;}
   <div class="card">
     <form id="form">
       <input type="date" id="date">
+      <input id="totalKm" type="number" placeholder="กิโลรวม (Odo)" min="0" max="999999" oninput="if(this.value.length > 6) this.value = this.value.slice(0,6);">
       <input id="km" type="number" step="any" placeholder="ระยะที่วิ่ง (Trip กม.)">
       <input type="range" id="fuelLevel" min="1" max="5" step="0.5" value="3" oninput="fuelValue.innerText=this.value">
       <span style="font-weight:bold; color:#38bdf8;"><span id="fuelValue">3</span> ขีด</span>
@@ -68,6 +69,7 @@ h2 {color: #38bdf8; margin: 0 0 10px 0;}
         <tr>
           <th>วันที่</th>
           <th>รถ</th>
+          <th>กิโลรวม</th>
           <th>กิโล (Trip)</th>
           <th>ขีด</th>
           <th>ลิตร</th>
@@ -163,6 +165,7 @@ form.onsubmit = e => {
     if(!currentCar) return alert("กรุณาเพิ่มรถก่อน");
     let obj = {
         date: date.value,
+        totalKm: parseInt(totalKm.value) || 0,
         km: parseFloat(km.value) || 0,
         fuelLevel: parseFloat(fuelLevel.value),
         liter: parseFloat(liter.value) || 0,
@@ -172,7 +175,7 @@ form.onsubmit = e => {
     if(editIndex === -1) db[currentCar].push(obj);
     else { db[currentCar][editIndex] = obj; editIndex = -1; }
     save(); render();
-    km.value = ""; liter.value = ""; price.value = ""; additive.value = "";
+    totalKm.value = ""; km.value = ""; liter.value = ""; price.value = ""; additive.value = "";
 };
 
 function deleteRow(i) {
@@ -181,10 +184,16 @@ function deleteRow(i) {
 
 function editRow(i) {
     let d = db[currentCar][i];
-    date.value = d.date; km.value = d.km; fuelLevel.value = d.fuelLevel;
-    fuelValue.innerText = d.fuelLevel; liter.value = d.liter;
-    price.value = d.price; additive.value = d.additive;
-    editIndex = i; window.scrollTo(0,0);
+    date.value = d.date; 
+    totalKm.value = d.totalKm || ""; 
+    km.value = d.km; 
+    fuelLevel.value = d.fuelLevel;
+    fuelValue.innerText = d.fuelLevel; 
+    liter.value = d.liter;
+    price.value = d.price; 
+    additive.value = d.additive;
+    editIndex = i; 
+    window.scrollTo(0,0);
 }
 
 function render() {
@@ -196,6 +205,7 @@ function render() {
     data.forEach((d, i) => {
         tableBody.innerHTML += `<tr>
             <td>${d.date}</td><td>${currentCar}</td>
+            <td style="color:#a7f3d0">${d.totalKm ? d.totalKm.toLocaleString() : '-'}</td>
             <td style="font-weight:bold; color:#38bdf8">${d.km}</td>
             <td>${d.fuelLevel}</td><td>${d.liter}</td><td>${d.price}</td>
             <td>${(d.liter * d.price).toFixed(2)}</td><td>${d.additive}</td>
