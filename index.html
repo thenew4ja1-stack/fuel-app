@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fuel System PRO - Full Control</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
@@ -53,7 +54,7 @@ h2 {color: #38bdf8; margin: 0 0 10px 0;}
       <hr style="border-color: #334155; margin: 15px 0;">
       <button type="button" onclick="exportData()" style="background: #10b981;">📤 สำรองข้อมูล (Saveลงเครื่อง)</button>
       <button type="button" onclick="importData()" style="background: #6366f1;">📥 ดึงข้อมูลกลับ (Upload)</button>
-      <input type="file" id="importFile" style="display:none" onchange="handleImport(this)">
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="handleImport(this)">
     </form>
   </div>
 
@@ -262,15 +263,25 @@ function drawChart(labels, values) {
     });
 }
 
-/* ================= ฟังก์ชันสำหรับ สำรอง/ดึง ข้อมูลกลับมา ================= */
+/* ================= ฟังก์ชันสำหรับ สำรอง/ดึง ข้อมูลกลับมา (รองรับ iOS/Safari) ================= */
 function exportData() {
-    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({fuelDB: db, cars: cars}));
-    let downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `fuel_backup_${new Date().toISOString().slice(0,10)}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+    const jsonString = JSON.stringify({fuelDB: db, cars: cars}, null, 2);
+    const fileName = `fuel_backup_${new Date().toISOString().slice(0,10)}.json`;
+    const blob = new Blob([jsonString], { type: "application/json" });
+
+    // แก้ปัญหา Safari บน iOS/iPadOS
+    const reader = new FileReader();
+    reader.onloadend = function() {
+        const a = document.createElement('a');
+        a.href = reader.result;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+        }, 100);
+    };
+    reader.readAsDataURL(blob);
 }
 
 function importData() {
@@ -293,6 +304,7 @@ function handleImport(input) {
                 alert("โครงสร้างไฟล์ข้อมูลไม่ถูกต้อง");
             }
         } catch(err) { alert("อ่านไฟล์ไม่ได้ หรือไฟล์ไม่ใช่ JSON"); }
+        input.value = ''; // ล้างค่าเผื่ออัปโหลดไฟล์เดิมซ้ำ
     };
     reader.readAsText(file);
 }
