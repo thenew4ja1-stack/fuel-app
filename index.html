@@ -2,7 +2,6 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fuel System PRO - Full Control</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
@@ -263,13 +262,12 @@ function drawChart(labels, values) {
     });
 }
 
-/* ================= ฟังก์ชันสำหรับ สำรอง ข้อมูล (รองรับ iOS/iPadOS/PC 100%) ================= */
+/* ================= ฟังก์ชันสำหรับ สำรอง ข้อมูล ================= */
 async function exportData() {
     const jsonString = JSON.stringify({fuelDB: db, cars: cars}, null, 2);
     const fileName = `fuel_backup_${new Date().toISOString().slice(0,10)}.json`;
     const blob = new Blob([jsonString], { type: "application/json" });
 
-    // 1. ถ้าเป็น iOS/iPadOS หรือเบราว์เซอร์มือถือที่รองรับ Web Share API
     const file = new File([blob], fileName, { type: "application/json" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
@@ -281,11 +279,10 @@ async function exportData() {
             return;
         } catch (err) {
             if (err.name !== 'AbortError') console.error(err);
-            else return; // ผู้ใช้กด Cancel
+            else return;
         }
     }
 
-    // 2. ถ้าเป็นคอมพิวเตอร์ (PC/Mac) จะใช้วิธีดาวน์โหลดปกติ
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
