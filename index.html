@@ -205,7 +205,7 @@ function render() {
     data.forEach((d, i) => {
         tableBody.innerHTML += `<tr>
             <td>${d.date}</td><td>${currentCar}</td>
-            <td style="color:#a7f3d0">${d.totalKm ? d.totalKm : '-'}</td>
+            <td style="color:#a7f3d0">${(d.totalKm && d.totalKm !== 0) ? d.totalKm : '-'}</td>
             <td style="font-weight:bold; color:#38bdf8">${d.km}</td>
             <td>${d.fuelLevel}</td><td>${d.liter}</td><td>${d.price}</td>
             <td>${(d.liter * d.price).toFixed(2)}</td><td>${d.additive}</td>
