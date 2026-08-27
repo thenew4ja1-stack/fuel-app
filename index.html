@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fuel System PRO - Full Control</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
@@ -19,12 +20,32 @@ td{padding:10px;border-bottom:1px solid #334155;text-align:center;font-size: 0.9
 .btn-edit{background:#f59e0b; color:white;}
 .car-controls { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 h2 {color: #38bdf8; margin: 0 0 10px 0;}
+
+/* Navigation Tabs */
+.nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+.tab-btn { background: #334155; color: #94a3b8; border: none; padding: 12px 24px; font-size: 1rem; border-radius: 8px; cursor: pointer; }
+.tab-btn.active { background: #38bdf8; color: #0f172a; font-weight: bold; }
+.page-content { display: none; }
+.page-content.active { display: block; }
+.kml-highlight { color: #34d399; font-weight: bold; }
+
+/* Summary Cards (หน้าที่ 2) */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+.stat-card { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 15px; text-align: center; }
+.stat-card .title { font-size: 0.85em; color: #94a3b8; margin-bottom: 5px; }
+.stat-card .value { font-size: 1.5em; font-weight: bold; color: #38bdf8; }
 </style>
 </head>
 <body>
 
 <div class="container">
   <h2>⛽ Fuel System PRO</h2>
+  
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchPage('page1', this)">📝 บันทึกข้อมูล & ประวัติ</button>
+    <button class="tab-btn" onclick="switchPage('page2', this)">📊 หน้าที่ 2: สรุปอัตราสิ้นเปลือง & ยอดรวม</button>
+  </div>
+
   <div class="card">
     <div class="car-controls">
       <select id="carSelect"></select>
@@ -37,51 +58,100 @@ h2 {color: #38bdf8; margin: 0 0 10px 0;}
     </div>
   </div>
 
-  <div class="card">
-    <form id="form">
-      <input type="date" id="date">
-      <input id="totalKm" type="number" placeholder="กิโลรวม (Odo)" min="0" max="999999" oninput="if(this.value.length > 6) this.value = this.value.slice(0,6);">
-      <input id="km" type="number" step="any" placeholder="ระยะที่วิ่ง (Trip กม.)">
-      <input type="range" id="fuelLevel" min="1" max="5" step="0.5" value="3" oninput="fuelValue.innerText=this.value">
-      <span style="font-weight:bold; color:#38bdf8;"><span id="fuelValue">3</span> ขีด</span>
-      <br>
-      <input id="liter" type="number" step="any" placeholder="ลิตร">
-      <input id="price" type="number" step="any" placeholder="ราคา/ลิตร">
-      <input id="additive" placeholder="หัวเชื้อ">
-      <button type="submit">💾 บันทึกข้อมูล</button>
-      
-      <hr style="border-color: #334155; margin: 15px 0;">
-      <button type="button" onclick="exportData()" style="background: #10b981;">📤 สำรองข้อมูล (Saveลงเครื่อง)</button>
-      <button type="button" onclick="importData()" style="background: #6366f1;">📥 ดึงข้อมูลกลับ (Upload)</button>
-      <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="handleImport(this)">
-    </form>
+  <!-- หน้าที่ 1 -->
+  <div id="page1" class="page-content active">
+    <div class="card">
+      <form id="form">
+        <input type="date" id="date">
+        <input id="totalKm" type="number" placeholder="กิโลรวม (Odo)" min="0" max="999999" oninput="if(this.value.length > 6) this.value = this.value.slice(0,6);">
+        <input id="km" type="number" step="any" placeholder="ระยะที่วิ่ง (Trip กม.)">
+        <input type="range" id="fuelLevel" min="1" max="5" step="0.5" value="3" oninput="fuelValue.innerText=this.value">
+        <span style="font-weight:bold; color:#38bdf8;"><span id="fuelValue">3</span> ขีด</span>
+        <br>
+        <input id="liter" type="number" step="any" placeholder="ลิตร">
+        <input id="price" type="number" step="any" placeholder="ราคา/ลิตร">
+        <input id="additive" placeholder="หัวเชื้อ">
+        <button type="submit">💾 บันทึกข้อมูล</button>
+        
+        <hr style="border-color: #334155; margin: 15px 0;">
+        <button type="button" onclick="exportData()" style="background: #10b981;">📤 สำรองข้อมูล (Saveลงเครื่อง)</button>
+        <button type="button" onclick="importData()" style="background: #6366f1;">📥 ดึงข้อมูลกลับ (Upload)</button>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="handleImport(this)">
+      </form>
+    </div>
+
+    <div class="card" style="height:400px;">
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div class="card">
+      <select id="chartCarSelect" style="float:right"></select>
+      <h3>📋 ประวัติย้อนหลัง</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>วันที่</th>
+            <th>รถ</th>
+            <th>กิโลรวม</th>
+            <th>กิโล (Trip)</th>
+            <th>ขีด</th>
+            <th>ลิตร</th>
+            <th>ราคา</th>
+            <th>รวมเงิน</th>
+            <th>อัตรา (km/L)</th>
+            <th>หัวเชื้อ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="table"></tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="card" style="height:400px;">
-    <canvas id="chart"></canvas>
+  <!-- หน้าที่ 2: วิเคราะห์อัตราสิ้นเปลือง & ยอดรวมทั้งหมด -->
+  <div id="page2" class="page-content">
+    <!-- การ์ดสรุปยอดรวมทั้งหมด -->
+    <div class="summary-grid">
+      <div class="stat-card">
+        <div class="title">⛽ ลิตรทั้งหมดที่เติม</div>
+        <div class="value" id="totalLiters">0.00 L</div>
+      </div>
+      <div class="stat-card">
+        <div class="title">💵 จำนวนเงินรวมทั้งหมด</div>
+        <div class="value" id="totalCost" style="color:#fcd34d;">0.00 ฿</div>
+      </div>
+      <div class="stat-card">
+        <div class="title">🛣️ ระยะทาง Trip รวมทั้งหมด</div>
+        <div class="value" id="totalTrip">0.00 km</div>
+      </div>
+      <div class="stat-card">
+        <div class="title">📈 อัตราสิ้นเปลืองเฉลี่ยรวม</div>
+        <div class="value" id="avgKml" style="color:#34d399;">0.00 km/L</div>
+      </div>
+    </div>
+
+    <div class="card" style="height:400px;">
+      <canvas id="kmlChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h3>⛽ รายละเอียดอัตราสิ้นเปลืองแต่ละรอบ</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>วันที่</th>
+            <th>ระยะทางที่วิ่ง (Trip)</th>
+            <th>จำนวนลิตร</th>
+            <th>ราคารวมรอบนี้</th>
+            <th>อัตราสิ้นเปลือง (กิโล/ลิตร)</th>
+            <th>ต้นทุน (บาท/กิโล)</th>
+          </tr>
+        </thead>
+        <tbody id="kmlTable"></tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="card">
-    <select id="chartCarSelect" style="float:right"></select>
-    <h3>📋 ประวัติย้อนหลัง</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>วันที่</th>
-          <th>รถ</th>
-          <th>กิโลรวม</th>
-          <th>กิโล (Trip)</th>
-          <th>ขีด</th>
-          <th>ลิตร</th>
-          <th>ราคา</th>
-          <th>รวมเงิน</th>
-          <th>หัวเชื้อ</th>
-          <th>จัดการ</th>
-        </tr>
-      </thead>
-      <tbody id="table"></tbody>
-    </table>
-  </div>
 </div>
 
 <script>
@@ -89,6 +159,7 @@ let db = JSON.parse(localStorage.getItem("fuelDB")) || {};
 let cars = JSON.parse(localStorage.getItem("cars")) || {};
 let currentCar = localStorage.getItem("currentCar") || "";
 let myChart = null;
+let kmlChart = null;
 let editIndex = -1;
 
 Chart.register(ChartDataLabels);
@@ -101,13 +172,19 @@ function init() {
     render();
 }
 
+function switchPage(pageId, btn) {
+    document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    btn.classList.add('active');
+    render();
+}
+
 function save() {
     localStorage.setItem("fuelDB", JSON.stringify(db));
     localStorage.setItem("cars", JSON.stringify(cars));
     localStorage.setItem("currentCar", currentCar);
 }
-
-/* ================= จัดการรถ (Car Management) ================= */
 
 function addCar() {
     let n = newCar.value.trim();
@@ -143,8 +220,6 @@ function editCarName() {
         save(); updateUI(); render();
     }
 }
-
-/* ================= ระบบหลัก ================= */
 
 function updateUI() {
     carSelect.innerHTML = "";
@@ -199,20 +274,63 @@ function editRow(i) {
 function render() {
     let data = db[currentCar] || [];
     let tableBody = document.getElementById("table");
+    let kmlTableBody = document.getElementById("kmlTable");
     tableBody.innerHTML = "";
+    kmlTableBody.innerHTML = "";
     data.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+    let kmlLabels = [];
+    let kmlValues = [];
+
+    // ตัวแปรสำหรับคำนวณสรุปรวมทั้งหมด
+    let sumLiter = 0;
+    let sumCost = 0;
+    let sumTrip = 0;
+
     data.forEach((d, i) => {
+        let kml = d.liter > 0 ? (d.km / d.liter).toFixed(2) : '0.00';
+        let rowCost = d.liter * d.price;
+        let costPerKm = d.km > 0 ? (rowCost / d.km).toFixed(2) : '0.00';
+
+        // สะสมยอดรวม
+        sumLiter += d.liter;
+        sumCost += rowCost;
+        sumTrip += d.km;
+        
+        kmlLabels.push(d.date);
+        kmlValues.push(parseFloat(kml));
+
+        // ตาราง หน้า 1
         tableBody.innerHTML += `<tr>
             <td>${d.date}</td><td>${currentCar}</td>
             <td style="color:#a7f3d0">${(d.totalKm && d.totalKm !== 0) ? d.totalKm : '-'}</td>
             <td style="font-weight:bold; color:#38bdf8">${d.km}</td>
             <td>${d.fuelLevel}</td><td>${d.liter}</td><td>${d.price}</td>
-            <td>${(d.liter * d.price).toFixed(2)}</td><td>${d.additive}</td>
+            <td>${rowCost.toFixed(2)}</td>
+            <td class="kml-highlight">${kml}</td>
+            <td>${d.additive}</td>
             <td><button class="btn-edit" onclick="editRow(${i})">✏️</button>
             <button class="btn-del" onclick="deleteRow(${i})">🗑️</button></td></tr>`;
+
+        // ตาราง หน้า 2
+        kmlTableBody.innerHTML += `<tr>
+            <td>${d.date}</td>
+            <td style="font-weight:bold; color:#38bdf8">${d.km.toLocaleString()} กม.</td>
+            <td>${d.liter.toLocaleString()} ลิตร</td>
+            <td>${rowCost.toFixed(2)} ฿</td>
+            <td class="kml-highlight" style="font-size:1.1em">${kml} กม./ลิตร</td>
+            <td style="color:#fcd34d">${costPerKm} บาท/กม.</td>
+        </tr>`;
     });
 
+    // แสดงค่าการ์ดสรุปรวมในหน้าที่ 2
+    document.getElementById("totalLiters").innerText = sumLiter.toFixed(2) + " L";
+    document.getElementById("totalCost").innerText = sumCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " ฿";
+    document.getElementById("totalTrip").innerText = sumTrip.toLocaleString() + " km";
+    let overallAvgKml = sumLiter > 0 ? (sumTrip / sumLiter).toFixed(2) : "0.00";
+    document.getElementById("avgKml").innerText = overallAvgKml + " km/L";
+
+    // กราฟสัปดาห์ หน้า 1
     let weeklyTotals = {};
     data.forEach(d => {
         let dt = new Date(d.date);
@@ -227,6 +345,9 @@ function render() {
     });
     let values = labels.map(l => weeklyTotals[l]);
     drawChart(labels, values);
+
+    // กราฟอัตราสิ้นเปลือง หน้า 2
+    drawKmlChart(kmlLabels, kmlValues);
 }
 
 function drawChart(labels, values) {
@@ -262,7 +383,41 @@ function drawChart(labels, values) {
     });
 }
 
-/* ================= ฟังก์ชันสำหรับ สำรอง ข้อมูล ================= */
+function drawKmlChart(labels, values) {
+    let ctx = document.getElementById("kmlChart").getContext("2d");
+    if(kmlChart) kmlChart.destroy();
+    kmlChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'อัตราสิ้นเปลืองน้ำมันต่อรอบ (กิโลเมตร / ลิตร)',
+                data: values,
+                borderColor: '#34d399',
+                backgroundColor: 'rgba(52, 211, 153, 0.2)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#e2e8f0', font: { size: 16, weight: 'bold' } } },
+                datalabels: {
+                    color: '#34d399', anchor: 'end', align: 'top',
+                    font: { size: 14, weight: 'bold' },
+                    formatter: (v) => v + " km/L"
+                }
+            },
+            scales: {
+                y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                x: { ticks: { color: '#ffffff' } }
+            }
+        }
+    });
+}
+
 async function exportData() {
     const jsonString = JSON.stringify({fuelDB: db, cars: cars}, null, 2);
     const fileName = `fuel_backup_${new Date().toISOString().slice(0,10)}.json`;
