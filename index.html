@@ -69,6 +69,7 @@ h2 {color: #38bdf8; margin: 0 0 10px 0;}
         <br>
         <input id="liter" type="number" step="any" placeholder="ลิตร">
         <input id="price" type="number" step="any" placeholder="ราคา/ลิตร">
+        <input id="customKml" type="text" placeholder="อัตรา km/L (ใส่ - ได้)">
         <input id="additive" placeholder="หัวเชื้อ">
         <button type="submit">💾 บันทึกข้อมูล</button>
         
@@ -236,6 +237,10 @@ chartCarSelect.onchange = () => { currentCar = chartCarSelect.value; save(); ren
 form.onsubmit = e => {
     e.preventDefault();
     if(!currentCar) return alert("กรุณาเพิ่มรถก่อน");
+    
+    let rawKml = customKml.value.trim();
+    let userKml = rawKml === "-" ? "-" : (rawKml !== "" && !isNaN(parseFloat(rawKml)) ? parseFloat(rawKml) : null);
+
     let obj = {
         date: date.value,
         totalKm: parseInt(totalKm.value) || 0,
@@ -243,12 +248,13 @@ form.onsubmit = e => {
         fuelLevel: parseFloat(fuelLevel.value),
         liter: parseFloat(liter.value) || 0,
         price: parseFloat(price.value) || 0,
+        customKml: userKml,
         additive: additive.value || "-"
     };
     if(editIndex === -1) db[currentCar].push(obj);
     else { db[currentCar][editIndex] = obj; editIndex = -1; }
     save(); render();
-    totalKm.value = ""; km.value = ""; liter.value = ""; price.value = ""; additive.value = "";
+    totalKm.value = ""; km.value = ""; liter.value = ""; price.value = ""; customKml.value = ""; additive.value = "";
 };
 
 function deleteRow(i) {
@@ -263,7 +269,8 @@ function editRow(i) {
     fuelLevel.value = d.fuelLevel;
     fuelValue.innerText = d.fuelLevel; 
     liter.value = d.liter;
-    price.value = d.price; 
+    price.value = d.price;
+    customKml.value = d.customKml !== undefined && d.customKml !== null ? d.customKml : "";
     additive.value = d.additive;
     editIndex = i; 
     window.scrollTo(0,0);
@@ -283,18 +290,33 @@ function render() {
     let sumLiter = 0;
     let sumCost = 0;
     let sumTrip = 0;
+    
+    let sumTripForAvg = 0;
+    let sumLiterForAvg = 0;
 
     data.forEach((d, i) => {
-        let kml = d.liter > 0 ? (d.km / d.liter).toFixed(2) : '0.00';
         let rowCost = d.liter * d.price;
-        let costPerKm = d.km > 0 ? (rowCost / d.km).toFixed(2) : '0.00';
+        let costPerKm = d.km > 0 ? (rowCost / d.km).toFixed(2) : '-';
 
         sumLiter += d.liter;
         sumCost += rowCost;
         sumTrip += d.km;
-        
-        kmlLabels.push(d.date);
-        kmlValues.push(parseFloat(kml));
+
+        let finalKml = "-";
+        if (d.customKml === "-") {
+            finalKml = "-";
+        } else if (typeof d.customKml === 'number') {
+            finalKml = d.customKml.toFixed(2);
+        } else if (d.liter > 0 && d.km > 0) {
+            finalKml = (d.km / d.liter).toFixed(2);
+        }
+
+        if (finalKml !== "-") {
+            sumTripForAvg += d.km;
+            sumLiterForAvg += d.liter;
+            kmlLabels.push(d.date);
+            kmlValues.push(parseFloat(finalKml));
+        }
 
         tableBody.innerHTML += `<tr>
             <td>${d.date}</td><td>${currentCar}</td>
@@ -302,7 +324,7 @@ function render() {
             <td style="font-weight:bold; color:#38bdf8">${d.km}</td>
             <td>${d.fuelLevel}</td><td>${d.liter}</td><td>${d.price}</td>
             <td>${rowCost.toFixed(2)}</td>
-            <td class="kml-highlight">${kml}</td>
+            <td class="kml-highlight">${finalKml}</td>
             <td>${d.additive}</td>
             <td><button class="btn-edit" onclick="editRow(${i})">✏️</button>
             <button class="btn-del" onclick="deleteRow(${i})">🗑️</button></td></tr>`;
@@ -312,16 +334,16 @@ function render() {
             <td style="font-weight:bold; color:#38bdf8">${d.km.toLocaleString()} กม.</td>
             <td>${d.liter.toLocaleString()} ลิตร</td>
             <td>${rowCost.toFixed(2)} ฿</td>
-            <td class="kml-highlight" style="font-size:1.1em">${kml} กม./ลิตร</td>
-            <td style="color:#fcd34d">${costPerKm} บาท/กม.</td>
+            <td class="kml-highlight" style="font-size:1.1em">${finalKml !== '-' ? finalKml + ' กม./ลิตร' : '-'}</td>
+            <td style="color:#fcd34d">${costPerKm !== '-' ? costPerKm + ' บาท/กม.' : '-'}</td>
         </tr>`;
     });
 
     document.getElementById("totalLiters").innerText = sumLiter.toFixed(2) + " L";
     document.getElementById("totalCost").innerText = sumCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " ฿";
     document.getElementById("totalTrip").innerText = sumTrip.toLocaleString() + " km";
-    let overallAvgKml = sumLiter > 0 ? (sumTrip / sumLiter).toFixed(2) : "0.00";
-    document.getElementById("avgKml").innerText = overallAvgKml + " km/L";
+    let overallAvgKml = sumLiterForAvg > 0 ? (sumTripForAvg / sumLiterForAvg).toFixed(2) : "-";
+    document.getElementById("avgKml").innerText = overallAvgKml !== "-" ? overallAvgKml + " km/L" : "-";
 
     let weeklyTotals = {};
     data.forEach(d => {
